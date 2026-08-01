@@ -247,7 +247,3 @@ is the simplest way to stay clear of this.
 AGPL-3.0-only. Copyright © 2026 IRIXSOFT LTD. See [LICENSE](LICENSE) for the full text.
 Licenses of the third-party dependencies bundled into the binary are listed in
 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md), regenerated for every release.
-
-In practice: run IRIXMAIL for yourself or your organisation with no obligations. If
-you modify it and offer the modified version to others over a network, make your
-changes available under the same license.
