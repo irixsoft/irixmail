@@ -1,13 +1,16 @@
 use irixmail_core::Result;
-use irixmail_store::{ChangeNotifier, Collection, Flow, Key, KeyPrefix, Store, Subspace};
+use irixmail_store::{BlobStore, ChangeNotifier, Store, Subspace};
 
-use crate::read::{load_data, load_metadata, update_message};
-use crate::threading::resolve_thread;
+use crate::ingest::message_has_attachment;
+use crate::message_data::Keyword;
+use crate::read::{load_data, load_raw, update_message};
+use crate::thread_backfill::document_ids;
 
-const BACKFILL_MARKER_TAG: u8 = 0x33;
+const BACKFILL_MARKER_TAG: u8 = 0x36;
 
-pub fn backfill_threads(
+pub fn backfill_attachment_keywords(
     store: &dyn Store,
+    blobs: &dyn BlobStore,
     notifier: &ChangeNotifier,
     account_ids: &[u32],
 ) -> Result<usize> {
@@ -18,42 +21,27 @@ pub fn backfill_threads(
     let mut updated = 0;
     for &account_id in account_ids {
         for document_id in document_ids(store, account_id)? {
-            let Some(metadata) = load_metadata(store, account_id, document_id)? else {
-                continue;
-            };
-            let resolution = resolve_thread(store, account_id, document_id, &metadata.raw_headers)?;
-            store.batch(&resolution.ops)?;
             let Some(data) = load_data(store, account_id, document_id)? else {
                 continue;
             };
-            if data.thread_id != resolution.thread_id {
-                update_message(store, notifier, account_id, document_id, |data| {
-                    data.thread_id = resolution.thread_id;
-                    Ok(())
-                })?;
-                updated += 1;
+            if data.keywords.contains(&Keyword::has_attachment()) {
+                continue;
             }
+            let Some(raw) = load_raw(store, blobs, account_id, document_id)? else {
+                continue;
+            };
+            if !message_has_attachment(&raw) {
+                continue;
+            }
+            update_message(store, notifier, account_id, document_id, |data| {
+                data.add_keyword(Keyword::has_attachment());
+                Ok(())
+            })?;
+            updated += 1;
         }
     }
     store.put(&marker, &[1])?;
     Ok(updated)
-}
-
-pub(crate) fn document_ids(store: &dyn Store, account_id: u32) -> Result<Vec<u32>> {
-    let prefix = KeyPrefix::collection(Subspace::Property, account_id, Collection::Email);
-    let bare_len = Key::new(Subspace::Property, account_id, Collection::Email, 0)
-        .encode()
-        .len();
-    let mut ids = Vec::new();
-    store.iterate(&prefix, &mut |key, _value| {
-        if key.len() == bare_len {
-            let mut bytes = [0u8; 4];
-            bytes.copy_from_slice(&key[bare_len - 4..]);
-            ids.push(u32::from_be_bytes(bytes));
-        }
-        Ok(Flow::Continue)
-    })?;
-    Ok(ids)
 }
 
 fn marker_key() -> Vec<u8> {
@@ -64,7 +52,7 @@ fn marker_key() -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::message_data::MessageData;
-    use irixmail_store::{serialize, Collection, Flow, Key, KeyPrefix, Subspace, WriteOp};
+    use irixmail_store::{serialize, BlobHash, Collection, Flow, Key, KeyPrefix, WriteOp};
     use std::collections::BTreeMap;
     use std::sync::Mutex;
 
@@ -164,99 +152,128 @@ mod tests {
         }
     }
 
-    fn data_key(account_id: u32, document_id: u32) -> Vec<u8> {
+    #[derive(Default)]
+    struct MemBlobStore {
+        map: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
+    }
+
+    impl BlobStore for MemBlobStore {
+        fn get(&self, hash: &BlobHash, range: std::ops::Range<usize>) -> Result<Option<Vec<u8>>> {
+            let map = self.map.lock().unwrap();
+            let Some(data) = map.get(hash.as_bytes()) else {
+                return Ok(None);
+            };
+            let start = range.start.min(data.len());
+            let end = range.end.min(data.len()).max(start);
+            Ok(Some(data[start..end].to_vec()))
+        }
+
+        fn put(&self, bytes: &[u8]) -> Result<BlobHash> {
+            let hash = BlobHash::from_bytes(vec![bytes.len() as u8]);
+            self.map
+                .lock()
+                .unwrap()
+                .insert(hash.as_bytes().to_vec(), bytes.to_vec());
+            Ok(hash)
+        }
+
+        fn delete(&self, hash: &BlobHash) -> Result<()> {
+            self.map.lock().unwrap().remove(hash.as_bytes());
+            Ok(())
+        }
+    }
+
+    fn key_for(account_id: u32, document_id: u32) -> Key {
         Key::new(
             Subspace::Property,
             account_id,
             Collection::Email,
             document_id,
         )
-        .encode()
     }
 
-    fn metadata_key(account_id: u32, document_id: u32) -> Vec<u8> {
-        Key::new(
-            Subspace::Property,
-            account_id,
-            Collection::Email,
-            document_id,
-        )
-        .with_suffix(vec![b'm'])
-        .encode()
-    }
-
-    fn seed(store: &MemStore, document_id: u32, thread_id: u32, raw: &[u8]) {
-        let metadata =
-            crate::ingest::ingest(irixmail_store::BlobHash::from_bytes(Vec::new()), raw).unwrap();
-        let mut data = MessageData::new(thread_id, raw.len() as u32);
+    fn seed(store: &MemStore, blobs: &MemBlobStore, document_id: u32, raw: &[u8]) {
+        let hash = blobs.put(raw).unwrap();
+        let mut metadata = crate::ingest::ingest(hash, raw).unwrap();
+        metadata.blob_hash = metadata.blob_hash().into_bytes();
+        let mut data = MessageData::new(document_id, raw.len() as u32);
         data.add_mailbox(1, document_id);
         store
             .put(
-                &metadata_key(7, document_id),
+                &key_for(7, document_id).with_suffix(vec![b'm']).encode(),
                 &serialize::archive(&metadata).unwrap(),
             )
             .unwrap();
         store
             .put(
-                &data_key(7, document_id),
+                &key_for(7, document_id).encode(),
                 &serialize::archive(&data).unwrap(),
             )
             .unwrap();
     }
 
-    fn thread_of(store: &MemStore, document_id: u32) -> u32 {
-        let bytes = store.get(&data_key(7, document_id)).unwrap().unwrap();
+    fn keywords_of(store: &MemStore, document_id: u32) -> Vec<Keyword> {
+        let bytes = store
+            .get(&key_for(7, document_id).encode())
+            .unwrap()
+            .unwrap();
         serialize::deserialize::<MessageData>(&bytes)
             .unwrap()
-            .thread_id
+            .keywords
     }
 
-    const PARENT: &[u8] =
-        b"From: a@example.com\r\nSubject: hi\r\nMessage-ID: <root@example.com>\r\n\r\nbody\r\n";
-    const REPLY: &[u8] = b"From: b@example.com\r\nSubject: Re: hi\r\nMessage-ID: <re@example.com>\r\nIn-Reply-To: <root@example.com>\r\n\r\nbody\r\n";
+    const PLAIN: &[u8] = b"From: a@example.com\r\nSubject: hi\r\n\r\nbody\r\n";
+    const ATTACHED: &[u8] = concat!(
+        "From: a@example.com\r\n",
+        "Subject: files\r\n",
+        "MIME-Version: 1.0\r\n",
+        "Content-Type: multipart/mixed; boundary=\"B\"\r\n",
+        "\r\n",
+        "--B\r\n",
+        "Content-Type: text/plain\r\n",
+        "\r\n",
+        "see attached\r\n",
+        "--B\r\n",
+        "Content-Type: application/pdf\r\n",
+        "Content-Disposition: attachment; filename=\"x.pdf\"\r\n",
+        "\r\n",
+        "%PDF-1.4\r\n",
+        "--B--\r\n",
+    )
+    .as_bytes();
 
     #[test]
-    fn backfill_rethreads_existing_messages() {
+    fn backfill_marks_stored_messages_with_attachments() {
         let store = MemStore::default();
+        let blobs = MemBlobStore::default();
         let notifier = ChangeNotifier::new();
-        seed(&store, 1, 1, PARENT);
-        seed(&store, 2, 2, REPLY);
+        seed(&store, &blobs, 1, PLAIN);
+        seed(&store, &blobs, 2, ATTACHED);
 
-        let updated = backfill_threads(&store, &notifier, &[7]).unwrap();
+        let updated = backfill_attachment_keywords(&store, &blobs, &notifier, &[7]).unwrap();
 
         assert_eq!(updated, 1);
-        assert_eq!(thread_of(&store, 1), 1);
-        assert_eq!(thread_of(&store, 2), 1);
+        assert!(!keywords_of(&store, 1).contains(&Keyword::has_attachment()));
+        assert!(keywords_of(&store, 2).contains(&Keyword::has_attachment()));
     }
 
     #[test]
-    fn backfill_runs_only_once() {
+    fn the_marker_makes_a_second_run_a_no_op() {
         let store = MemStore::default();
+        let blobs = MemBlobStore::default();
         let notifier = ChangeNotifier::new();
-        seed(&store, 1, 1, PARENT);
-        seed(&store, 2, 2, REPLY);
+        seed(&store, &blobs, 1, ATTACHED);
 
-        backfill_threads(&store, &notifier, &[7]).unwrap();
-        seed(&store, 3, 3, REPLY);
-        let second = backfill_threads(&store, &notifier, &[7]).unwrap();
+        assert_eq!(
+            backfill_attachment_keywords(&store, &blobs, &notifier, &[7]).unwrap(),
+            1
+        );
 
-        assert_eq!(second, 0);
-        assert_eq!(thread_of(&store, 3), 3);
-    }
-
-    #[test]
-    fn a_rethreaded_message_records_a_replayable_change() {
-        let store = MemStore::default();
-        let notifier = ChangeNotifier::new();
-        seed(&store, 1, 1, PARENT);
-        seed(&store, 2, 2, REPLY);
-
-        backfill_threads(&store, &notifier, &[7]).unwrap();
-
-        let changes = irixmail_store::ChangeLog::new(&store)
-            .changes_since(7, Collection::Email, 0)
-            .unwrap();
-        assert_eq!(changes.len(), 1);
-        assert_eq!(changes[0].document_id, 2);
+        seed(&store, &blobs, 2, ATTACHED);
+        assert_eq!(
+            backfill_attachment_keywords(&store, &blobs, &notifier, &[7]).unwrap(),
+            0
+        );
+        assert!(!keywords_of(&store, 2).contains(&Keyword::has_attachment()));
     }
 }

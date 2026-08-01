@@ -393,6 +393,7 @@ async fn boot(
     });
 
     let backfill_store = Arc::clone(&store) as Arc<dyn Store>;
+    let backfill_blobs = Arc::clone(&blobs) as Arc<dyn BlobStore>;
     let backfill_notifier = Arc::clone(&notifier);
     server
         .registry()
@@ -400,17 +401,26 @@ async fn boot(
             let task = tokio::task::spawn_blocking(move || {
                 let accounts = backfill_directory.accounts().list()?;
                 let ids: Vec<u32> = accounts.iter().map(|a| a.id as u32).collect();
-                irixmail_mail::backfill_threads(
+                let threaded = irixmail_mail::backfill_threads(
                     backfill_store.as_ref(),
                     backfill_notifier.as_ref(),
                     &ids,
-                )
+                )?;
+                let marked = irixmail_mail::backfill_attachment_keywords(
+                    backfill_store.as_ref(),
+                    backfill_blobs.as_ref(),
+                    backfill_notifier.as_ref(),
+                    &ids,
+                )?;
+                Ok::<_, irixmail_core::Error>((threaded, marked))
             });
             match task.await {
-                Ok(Ok(0)) => {}
-                Ok(Ok(updated)) => tracing::info!(updated, "backfilled message threads"),
-                Ok(Err(err)) => tracing::warn!(error = %err, "the thread backfill failed"),
-                Err(err) => tracing::warn!(error = %err, "the thread backfill task panicked"),
+                Ok(Ok((0, 0))) => {}
+                Ok(Ok((threaded, marked))) => {
+                    tracing::info!(threaded, marked, "backfilled message records")
+                }
+                Ok(Err(err)) => tracing::warn!(error = %err, "the message backfill failed"),
+                Err(err) => tracing::warn!(error = %err, "the message backfill task panicked"),
             }
         });
 

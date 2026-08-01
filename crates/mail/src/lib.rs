@@ -1,3 +1,4 @@
+pub mod attachment_backfill;
 pub mod auth_results;
 pub mod blob_store_msg;
 pub mod cache;
@@ -24,6 +25,7 @@ pub mod thread_backfill;
 pub mod threading;
 pub mod vacation;
 
+pub use attachment_backfill::backfill_attachment_keywords;
 pub use auth_results::{
     ArcVerdict, AuthResults, DkimVerdict, DmarcVerdict, MethodResult, SpfIdentity, SpfVerdict,
 };

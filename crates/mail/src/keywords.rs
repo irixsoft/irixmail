@@ -47,6 +47,10 @@ impl Keyword {
         }
     }
 
+    pub fn has_attachment() -> Keyword {
+        Keyword::Custom("$hasattachment".to_string())
+    }
+
     pub fn is_system(&self) -> bool {
         !matches!(self, Keyword::Custom(_))
     }

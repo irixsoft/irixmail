@@ -109,6 +109,9 @@ pub fn deliver(
     let mut data = MessageData::new(threading.thread_id, size as u32);
     data.received_at = request.received_at;
     data.sent_at = crate::index::message_sent_at(request.raw);
+    if crate::ingest::message_has_attachment(request.raw) {
+        data.add_keyword(Keyword::has_attachment());
+    }
     let mut filed_into = Vec::with_capacity(targets.len());
     for mailbox in &targets {
         let uid = mailbox.next_uid(store, account_id)?;
@@ -217,6 +220,9 @@ pub fn append_message(
     data.add_mailbox(request.mailbox.id, uid);
     for keyword in &request.flags {
         data.add_keyword(keyword.clone());
+    }
+    if crate::ingest::message_has_attachment(request.raw) {
+        data.add_keyword(Keyword::has_attachment());
     }
 
     let mut batch = BatchBuilder::new();
@@ -495,6 +501,92 @@ mod tests {
             .unwrap()
             .unwrap();
         serialize::deserialize::<MessageData>(&bytes).unwrap()
+    }
+
+    const ATTACHMENT_MESSAGE: &[u8] = concat!(
+        "From: newsletter@example.com\r\n",
+        "To: me@example.org\r\n",
+        "Subject: Files\r\n",
+        "MIME-Version: 1.0\r\n",
+        "Content-Type: multipart/mixed; boundary=\"B\"\r\n",
+        "\r\n",
+        "--B\r\n",
+        "Content-Type: text/plain\r\n",
+        "\r\n",
+        "see attached\r\n",
+        "--B\r\n",
+        "Content-Type: application/pdf\r\n",
+        "Content-Disposition: attachment; filename=\"x.pdf\"\r\n",
+        "\r\n",
+        "%PDF-1.4\r\n",
+        "--B--\r\n",
+    )
+    .as_bytes();
+
+    #[test]
+    fn delivery_marks_a_message_carrying_an_attachment() {
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.raw = ATTACHMENT_MESSAGE;
+
+        deliver(&store, &blobs, &notifier, &req).unwrap();
+
+        assert!(read_data(&store, 7, 10)
+            .keywords
+            .contains(&Keyword::has_attachment()));
+    }
+
+    #[test]
+    fn delivery_leaves_a_plain_message_unmarked() {
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+
+        deliver(
+            &store,
+            &blobs,
+            &notifier,
+            &request(&account, &mailboxes, 10),
+        )
+        .unwrap();
+
+        assert!(!read_data(&store, 7, 10)
+            .keywords
+            .contains(&Keyword::has_attachment()));
+    }
+
+    #[test]
+    fn append_marks_a_message_carrying_an_attachment() {
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+
+        append_message(
+            &store,
+            &blobs,
+            &notifier,
+            &AppendRequest {
+                account: &account,
+                mailbox: &mailboxes[0],
+                flags: vec![Keyword::Seen],
+                received_at: 1_700_000_000,
+                document_id: 12,
+                raw: ATTACHMENT_MESSAGE,
+            },
+        )
+        .unwrap();
+
+        let keywords = read_data(&store, 7, 12).keywords;
+        assert!(keywords.contains(&Keyword::Seen));
+        assert!(keywords.contains(&Keyword::has_attachment()));
     }
 
     #[test]

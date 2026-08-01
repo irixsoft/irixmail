@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use serde_json::{json, Value};
 
 use irixmail_mail::{Keyword, MessageCacheEntry, MessageStoreCache};
@@ -15,8 +17,8 @@ struct EmailFilter {
     unmatchable: bool,
     in_mailbox: Option<u32>,
     fts: Vec<Query>,
-    has_keyword: Option<Keyword>,
-    not_keyword: Option<Keyword>,
+    has_keywords: Vec<Keyword>,
+    not_keywords: Vec<Keyword>,
     before: Option<u64>,
     after: Option<u64>,
     min_size: Option<u64>,
@@ -33,15 +35,11 @@ impl EmailFilter {
                 return false;
             }
         }
-        if let Some(keyword) = &self.has_keyword {
-            if !entry.has_keyword(keyword) {
-                return false;
-            }
+        if !self.has_keywords.iter().all(|k| entry.has_keyword(k)) {
+            return false;
         }
-        if let Some(keyword) = &self.not_keyword {
-            if entry.has_keyword(keyword) {
-                return false;
-            }
+        if self.not_keywords.iter().any(|k| entry.has_keyword(k)) {
+            return false;
         }
         if let Some(before) = self.before {
             if entry.received_at >= before {
@@ -67,12 +65,41 @@ impl EmailFilter {
     }
 }
 
-fn parse_filter(args: &Value) -> Option<EmailFilter> {
+enum FilterNode {
+    And(Vec<FilterNode>),
+    Or(Vec<FilterNode>),
+    Not(Vec<FilterNode>),
+    Leaf(EmailFilter),
+}
+
+fn parse_filter(args: &Value) -> Option<Option<FilterNode>> {
+    match args.get("filter").filter(|value| !value.is_null()) {
+        None => Some(None),
+        Some(value) => parse_node(value).map(Some),
+    }
+}
+
+fn parse_node(value: &Value) -> Option<FilterNode> {
+    let object = value.as_object()?;
+    if let Some(operator) = object.get("operator") {
+        let conditions = object.get("conditions")?.as_array()?;
+        let nodes = conditions
+            .iter()
+            .map(parse_node)
+            .collect::<Option<Vec<_>>>()?;
+        return match operator.as_str()? {
+            "AND" => Some(FilterNode::And(nodes)),
+            "OR" => Some(FilterNode::Or(nodes)),
+            "NOT" => Some(FilterNode::Not(nodes)),
+            _ => None,
+        };
+    }
+    parse_condition(value).map(FilterNode::Leaf)
+}
+
+fn parse_condition(value: &Value) -> Option<EmailFilter> {
     let mut filter = EmailFilter::default();
-    let Some(conditions) = args.get("filter").filter(|value| !value.is_null()) else {
-        return Some(filter);
-    };
-    for (key, value) in conditions.as_object()? {
+    for (key, value) in value.as_object()? {
         match key.as_str() {
             "inMailbox" => match value.as_str().and_then(|id| id.parse::<u32>().ok()) {
                 Some(id) => filter.in_mailbox = Some(id),
@@ -87,8 +114,16 @@ fn parse_filter(args: &Value) -> Option<EmailFilter> {
             "to" => filter.fts.push(Query::field(Field::To, value.as_str()?)),
             "cc" => filter.fts.push(Query::field(Field::Cc, value.as_str()?)),
             "bcc" => filter.fts.push(Query::field(Field::Bcc, value.as_str()?)),
-            "hasKeyword" => filter.has_keyword = Some(Keyword::from_jmap(value.as_str()?)),
-            "notKeyword" => filter.not_keyword = Some(Keyword::from_jmap(value.as_str()?)),
+            "hasKeyword" => filter
+                .has_keywords
+                .push(Keyword::from_jmap(value.as_str()?)),
+            "notKeyword" => filter
+                .not_keywords
+                .push(Keyword::from_jmap(value.as_str()?)),
+            "hasAttachment" => match value.as_bool()? {
+                true => filter.has_keywords.push(Keyword::has_attachment()),
+                false => filter.not_keywords.push(Keyword::has_attachment()),
+            },
             "before" => filter.before = Some(utc_date::parse(value.as_str()?)?),
             "after" => filter.after = Some(utc_date::parse(value.as_str()?)?),
             "minSize" => filter.min_size = Some(value.as_u64()?),
@@ -97,6 +132,66 @@ fn parse_filter(args: &Value) -> Option<EmailFilter> {
         }
     }
     Some(filter)
+}
+
+fn eval_node(
+    node: &FilterNode,
+    ctx: &JmapContext,
+    account: u32,
+    cache: Option<&MessageStoreCache>,
+    universe: &[u32],
+) -> Result<BTreeSet<u32>, &'static str> {
+    match node {
+        FilterNode::And(nodes) => {
+            let mut ids: BTreeSet<u32> = universe.iter().copied().collect();
+            for node in nodes {
+                let matched = eval_node(node, ctx, account, cache, universe)?;
+                ids.retain(|id| matched.contains(id));
+            }
+            Ok(ids)
+        }
+        FilterNode::Or(nodes) => {
+            let mut ids = BTreeSet::new();
+            for node in nodes {
+                ids.extend(eval_node(node, ctx, account, cache, universe)?);
+            }
+            Ok(ids)
+        }
+        FilterNode::Not(nodes) => {
+            let mut excluded = BTreeSet::new();
+            for node in nodes {
+                excluded.extend(eval_node(node, ctx, account, cache, universe)?);
+            }
+            Ok(universe
+                .iter()
+                .copied()
+                .filter(|id| !excluded.contains(id))
+                .collect())
+        }
+        FilterNode::Leaf(filter) => {
+            let ids: Vec<u32> = cache
+                .map(|cache| {
+                    cache
+                        .entries()
+                        .filter(|entry| filter.matches(entry))
+                        .map(|entry| entry.document_id)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if filter.fts.is_empty() {
+                return Ok(ids.into_iter().collect());
+            }
+            FtsIndex::new(ctx.store.as_ref())
+                .search(
+                    account,
+                    Collection::Email,
+                    &Query::all(filter.fts.clone()),
+                    &ids,
+                )
+                .map(|hits| hits.into_iter().collect())
+                .map_err(|_| "serverFail")
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -169,21 +264,16 @@ pub(crate) fn query_ids(ctx: &JmapContext, args: &Value) -> Result<Vec<u32>, &'s
     let comparators = parse_sort(args).ok_or("unsupportedSort")?;
 
     let cache = MessageStoreCache::build(ctx.store.as_ref(), account).ok();
-    let mut ids: Vec<u32> = cache
+    let universe: Vec<u32> = cache
         .as_ref()
-        .map(|cache| {
-            cache
-                .entries()
-                .filter(|entry| filter.matches(entry))
-                .map(|entry| entry.document_id)
-                .collect()
-        })
+        .map(|cache| cache.entries().map(|entry| entry.document_id).collect())
         .unwrap_or_default();
-    if !filter.fts.is_empty() {
-        ids = FtsIndex::new(ctx.store.as_ref())
-            .search(account, Collection::Email, &Query::all(filter.fts), &ids)
-            .map_err(|_| "serverFail")?;
-    }
+    let mut ids: Vec<u32> = match &filter {
+        None => universe,
+        Some(node) => eval_node(node, ctx, account, cache.as_ref(), &universe)?
+            .into_iter()
+            .collect(),
+    };
     sort_ids(&mut ids, cache.as_ref(), &comparators);
     Ok(ids)
 }
@@ -462,6 +552,148 @@ mod tests {
         let response = query_sorted(&ctx, json!([{"property": "from", "isAscending": true}]));
         assert_eq!(response.name(), "error");
         assert_eq!(response.arguments()["type"], "unsupportedSort");
+    }
+
+    const TO_ALICE: &[u8] = concat!(
+        "Subject: Re: hello\r\n",
+        "From: bob@example.org\r\n",
+        "To: alice@example.net\r\n",
+        "\r\n",
+        "hello alice\r\n",
+    )
+    .as_bytes();
+
+    const WITH_ATTACHMENT: &[u8] = concat!(
+        "Subject: Files\r\n",
+        "From: dave@example.com\r\n",
+        "To: bob@example.org\r\n",
+        "MIME-Version: 1.0\r\n",
+        "Content-Type: multipart/mixed; boundary=\"B\"\r\n",
+        "\r\n",
+        "--B\r\n",
+        "Content-Type: text/plain\r\n",
+        "\r\n",
+        "see attached\r\n",
+        "--B\r\n",
+        "Content-Type: application/pdf\r\n",
+        "Content-Disposition: attachment; filename=\"x.pdf\"\r\n",
+        "\r\n",
+        "%PDF-1.4\r\n",
+        "--B--\r\n",
+    )
+    .as_bytes();
+
+    #[test]
+    fn an_and_operator_narrows_across_conditions() {
+        let ctx = test_context_with_account();
+        let seen_invoice = seed(&ctx, INVOICE, vec![Keyword::Seen], 0);
+        seed(&ctx, STANDUP, vec![Keyword::Seen], 0);
+
+        let response = query(
+            &ctx,
+            json!({"operator": "AND", "conditions": [
+                {"text": "invoice"},
+                {"hasKeyword": "$seen"}
+            ]}),
+        );
+        assert_eq!(
+            response.arguments()["ids"],
+            json!([seen_invoice.to_string()])
+        );
+    }
+
+    #[test]
+    fn an_or_operator_unions_conditions() {
+        let ctx = test_context_with_account();
+        let from_alice = seed(&ctx, INVOICE, vec![], 0);
+        let to_alice = seed(&ctx, TO_ALICE, vec![], 0);
+        seed(&ctx, STANDUP, vec![], 0);
+
+        let response = query(
+            &ctx,
+            json!({"operator": "OR", "conditions": [
+                {"from": "alice@example.net"},
+                {"to": "alice@example.net"}
+            ]}),
+        );
+        let mut ids: Vec<String> = response.arguments()["ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap().to_string())
+            .collect();
+        ids.sort();
+        let mut expected = vec![from_alice.to_string(), to_alice.to_string()];
+        expected.sort();
+        assert_eq!(ids, expected);
+    }
+
+    #[test]
+    fn a_not_operator_excludes_matches() {
+        let ctx = test_context_with_account();
+        seed(&ctx, INVOICE, vec![], 0);
+        let standup = seed(&ctx, STANDUP, vec![], 0);
+
+        let response = query(
+            &ctx,
+            json!({"operator": "NOT", "conditions": [{"text": "invoice"}]}),
+        );
+        assert_eq!(response.arguments()["ids"], json!([standup.to_string()]));
+    }
+
+    #[test]
+    fn operators_nest_inside_conditions() {
+        let ctx = test_context_with_account();
+        let invoice = seed(&ctx, INVOICE, vec![], 0);
+        let standup = seed(&ctx, STANDUP, vec![], 0);
+        seed(&ctx, TO_ALICE, vec![], 0);
+
+        let response = query(
+            &ctx,
+            json!({"operator": "AND", "conditions": [
+                {"inMailbox": INBOX_ID.to_string()},
+                {"operator": "OR", "conditions": [
+                    {"subject": "quarterly"},
+                    {"subject": "meeting"}
+                ]}
+            ]}),
+        );
+        let mut ids: Vec<String> = response.arguments()["ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap().to_string())
+            .collect();
+        ids.sort();
+        let mut expected = vec![invoice.to_string(), standup.to_string()];
+        expected.sort();
+        assert_eq!(ids, expected);
+    }
+
+    #[test]
+    fn has_attachment_filters_on_the_stored_keyword() {
+        let ctx = test_context_with_account();
+        let plain = seed(&ctx, INVOICE, vec![], 0);
+        let attached = seed(&ctx, WITH_ATTACHMENT, vec![], 0);
+
+        let with = query(&ctx, json!({"hasAttachment": true}));
+        assert_eq!(with.arguments()["ids"], json!([attached.to_string()]));
+
+        let without = query(&ctx, json!({"hasAttachment": false}));
+        assert_eq!(without.arguments()["ids"], json!([plain.to_string()]));
+    }
+
+    #[test]
+    fn an_unknown_operator_is_rejected() {
+        let ctx = test_context_with_account();
+        seed(&ctx, INVOICE, vec![], 0);
+
+        let response = query(
+            &ctx,
+            json!({"operator": "XOR", "conditions": [{"text": "x"}]}),
+        );
+        assert_eq!(response.name(), "error");
+        assert_eq!(response.arguments()["type"], "unsupportedFilter");
     }
 
     #[test]

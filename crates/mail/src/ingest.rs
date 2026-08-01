@@ -8,6 +8,13 @@ use crate::metadata::{
 
 const PREVIEW_LEN: usize = 256;
 
+pub fn message_has_attachment(raw: &[u8]) -> bool {
+    MessageParser::default()
+        .parse(raw)
+        .map(|parsed| parsed.attachments().next().is_some())
+        .unwrap_or(false)
+}
+
 pub fn ingest(blob_hash: BlobHash, raw: &[u8]) -> Result<MessageMetadata> {
     let parsed = MessageParser::default()
         .parse(raw)
@@ -288,5 +295,35 @@ mod tests {
             &h.name,
             HeaderName::Other(name) if name.eq_ignore_ascii_case("X-Irixmail-Tag")
         )));
+    }
+
+    #[test]
+    fn reports_an_attachment_when_a_part_has_one() {
+        let raw = concat!(
+            "Subject: Files\r\n",
+            "From: alice@example.com\r\n",
+            "MIME-Version: 1.0\r\n",
+            "Content-Type: multipart/mixed; boundary=\"B\"\r\n",
+            "\r\n",
+            "--B\r\n",
+            "Content-Type: text/plain\r\n",
+            "\r\n",
+            "see attached\r\n",
+            "--B\r\n",
+            "Content-Type: application/pdf\r\n",
+            "Content-Disposition: attachment; filename=\"x.pdf\"\r\n",
+            "\r\n",
+            "%PDF-1.4\r\n",
+            "--B--\r\n",
+        )
+        .as_bytes();
+        assert!(message_has_attachment(raw));
+    }
+
+    #[test]
+    fn reports_no_attachment_for_a_plain_message() {
+        let raw = b"Subject: Hello\r\nFrom: alice@example.com\r\n\r\njust text\r\n";
+        assert!(!message_has_attachment(raw));
+        assert!(!message_has_attachment(b""));
     }
 }

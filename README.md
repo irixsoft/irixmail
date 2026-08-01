@@ -48,7 +48,7 @@ sudo systemctl enable --now irixmail
 To pin a version, pass `IRIXMAIL_VERSION`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/irixsoft/irixmail/main/install.sh | sudo IRIXMAIL_VERSION=v0.1.3 sh
+curl -fsSL https://raw.githubusercontent.com/irixsoft/irixmail/main/install.sh | sudo IRIXMAIL_VERSION=v0.1.4 sh
 ```
 
 ### Before you start
@@ -74,7 +74,8 @@ phone home screen or a desktop dock.
 - **Conversation threading** — the message list groups by thread, and a conversation
   opens with the latest message expanded and quoted history collapsed.
 - **Full-text search** — a dedicated search page over subjects, message bodies, and
-  every address on the envelope.
+  every address on the envelope, with filters for folder, tags, attachments, read
+  state, stars, and date range.
 - **Composer** — rich text or plain text, drag-and-drop attachments with upload
   progress, recipient autocomplete from your contacts, and reply, reply all, and
   forward that quote the original and keep the thread intact.
