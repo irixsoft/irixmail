@@ -1414,7 +1414,7 @@ checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
 
 [[package]]
 name = "irixmail"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "parking_lot",
  "serde",
@@ -1451,7 +1451,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-dav"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "blake3",
  "calcard",
@@ -1465,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-directory"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes-gcm-siv",
  "argon2",
@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-dns"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64",
  "hickory-resolver 0.25.2",
@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-http"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "axum",
  "base64",
@@ -1536,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-imap"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64",
  "irixmail-core",
@@ -1556,7 +1556,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-jmap"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64",
  "calcard",
@@ -1577,7 +1577,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-mail"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "blake3",
  "irixmail-core",
@@ -1594,7 +1594,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-pop3"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64",
  "irixmail-core",
@@ -1614,7 +1614,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-smtp"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64",
  "hickory-resolver 0.25.2",
@@ -1640,7 +1640,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-store"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "blake3",
  "irixmail-core",
@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "irixmail-tls"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "arc-swap",
  "instant-acme",

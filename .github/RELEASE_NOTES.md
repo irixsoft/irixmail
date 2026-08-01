@@ -1,20 +1,21 @@
-# v0.1.3
+# v0.1.4
 
 ## What's new
 
-**Push notifications, overhauled**
-- New mail notifications now show the sender and subject, and tapping one opens that message directly
-- Notifications fire only for genuinely new incoming mail — reading, flagging, sending, or deleting on another device no longer triggers banners, and dismissed notifications stay dismissed
-- Multiple messages arriving together coalesce into a single "N new messages" notification
-- The subscription status badge now resolves to "verified" instead of sticking on "verifying"
-- Stale unverified subscriptions are cleaned up automatically, and signing out removes the device's push registration on both the browser and the server
+**Search actually searches**
+- Combining more than one search filter no longer returns an empty list — the server now understands AND, OR, and NOT filter groups
+- Filtering by attachment works: arriving mail is marked as carrying an attachment, and existing mail is marked once on the first start after upgrading
+- The contacts pane shows recent mail from a person again
 
-**Webmail**
-- The compose page no longer crashes in Safari
-- Replies and forwards from the compose page keep proper email threading
-- The inline reply box under a conversation is replaced with Reply / Reply all / Forward buttons that open the full composer
-- Collapsing the folder pane now shows a compact icon rail with tooltips and unread indicators instead of hiding your folders
-- Message list polish: avatars and checkboxes are vertically centered, selection checkboxes are clearly visible in both themes, and stray checkboxes no longer appear under avatars on phones
+**Branding**
+- The real IRIXMAIL logo replaces the placeholder wordmark in the webmail, the admin panel, and both sign-in pages
+- New app icon and favicon everywhere, including the installed PWA and push notifications
+
+**Updates you can see**
+- After an update, an open webmail tab now offers a Refresh prompt instead of silently breaking on the old assets
+
+**Other**
+- The webmail settings page links to the source code, as the AGPL requires
 
 ## Upgrading
 
