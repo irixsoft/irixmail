@@ -126,6 +126,17 @@ export function SettingsPage() {
           <div className="mt-5">
             <Active />
           </div>
+          <p className="mt-10 text-xs text-muted-foreground">
+            IRIXMAIL is free software (AGPL-3.0) ·{" "}
+            <a
+              href="https://github.com/irixsoft/irixmail"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              Source code
+            </a>
+          </p>
         </div>
       </div>
     </div>
