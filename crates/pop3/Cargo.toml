@@ -1,0 +1,29 @@
+[package]
+name = "irixmail-pop3"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "POP3 server for IRIXMAIL: USER/PASS and SASL login over the INBOX view with deletions committed on QUIT."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-directory = { path = "../directory" }
+irixmail-mail = { path = "../mail" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls = { workspace = true }
+mail-parser = { workspace = true }
+base64 = "0.22"
+
+[dev-dependencies]
+rcgen = { workspace = true }
+tracing-subscriber = { workspace = true }

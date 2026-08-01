@@ -1,0 +1,4 @@
+@import "@irixmail/shared/styles/theme.css";
+
+@source "./";
+@source "../../shared/src";

@@ -1,0 +1,28 @@
+[package]
+name = "irixmail-jmap"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "JMAP Core and Mail server for IRIXMAIL: session, method calls and EventSource push backing the built-in webmail."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-directory = { path = "../directory" }
+irixmail-mail = { path = "../mail" }
+irixmail-dav = { path = "../dav" }
+calcard = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+mail-parser = { workspace = true }
+ring = "0.17"
+rand = { workspace = true }
+base64 = "0.22"

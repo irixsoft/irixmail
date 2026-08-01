@@ -1,0 +1,41 @@
+{
+  "name": "@irixmail/webmail",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@irixmail/shared": "workspace:*",
+    "@tanstack/query-async-storage-persister": "^5.101.4",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-query-persist-client": "^5.101.4",
+    "@tanstack/react-virtual": "^3.14.9",
+    "@tiptap/extension-link": "^3",
+    "@tiptap/extension-underline": "^3",
+    "@tiptap/pm": "^3",
+    "@tiptap/react": "^3",
+    "@tiptap/starter-kit": "^3",
+    "dompurify": "^3.4.11",
+    "lucide-react": "^1.21.0",
+    "motion": "^12.43.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-hook-form": "^7.80.0",
+    "react-router-dom": "^7.18.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.11.1",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
+  }
+}

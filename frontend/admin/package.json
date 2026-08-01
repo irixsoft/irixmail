@@ -1,0 +1,24 @@
+{
+  "name": "@irixmail/admin",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@irixmail/shared": "workspace:*",
+    "@tanstack/react-query": "^5.101.4",
+    "lucide-react": "^1.21.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-hook-form": "^7.80.0",
+    "react-router-dom": "^7.18.0",
+    "zod": "^4.4.3"
+  }
+}

@@ -1,0 +1,30 @@
+[package]
+name = "irixmail-tls"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "TLS and ACME for IRIXMAIL: dynamic SNI certificate resolver, native Let's Encrypt issuance and renewal, and the certificate store."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-dns = { path = "../dns" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+instant-acme = { workspace = true }
+rcgen = { workspace = true }
+arc-swap = { workspace = true }
+pem = "3"
+ring = "0.17"
+x509-parser = { version = "0.18", default-features = false }

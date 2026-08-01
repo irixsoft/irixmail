@@ -1,0 +1,31 @@
+{
+  "name": "irixmail-frontend",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.11",
+  "workspaces": [
+    "shared",
+    "admin",
+    "webmail"
+  ],
+  "scripts": {
+    "typecheck": "bun run --filter '*' typecheck",
+    "build": "bun run --filter '*' build",
+    "dev:admin": "bun run --filter @irixmail/admin dev",
+    "dev:webmail": "bun run --filter @irixmail/webmail dev"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.3",
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.3",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

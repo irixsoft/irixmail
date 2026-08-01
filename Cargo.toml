@@ -1,0 +1,109 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/irixmail",
+    "crates/core",
+    "crates/store",
+    "crates/directory",
+    "crates/mail",
+    "crates/smtp",
+    "crates/imap",
+    "crates/pop3",
+    "crates/jmap",
+    "crates/dav",
+    "crates/http",
+    "crates/tls",
+    "crates/dns",
+]
+
+[workspace.package]
+version = "0.1.3"
+edition = "2021"
+rust-version = "1.94"
+license = "AGPL-3.0-only"
+authors = ["IRIXSOFT <hello@irixsoft.com>"]
+homepage = "https://irixsoft.com"
+repository = "https://github.com/irixsoft/irixmail"
+description = "Self-hosted Linux mail server: SMTP, IMAP, POP3, JMAP, admin panel and webmail in a single binary."
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.44", features = ["full"] }
+
+# HTTP and web framework
+axum = "0.8"
+hyper = { version = "1.6", features = ["full"] }
+tower = "0.5"
+tower-http = "0.6"
+
+# TLS and ACME
+rustls = "0.23"
+tokio-rustls = "0.26"
+rustls-pemfile = "2.2"
+instant-acme = "0.7"
+rcgen = "0.13"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+
+# Storage and serialization
+rocksdb = { package = "rust-rocksdb", version = "0.36" }
+rkyv = "0.8"
+roaring = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# DNS
+hickory-resolver = "0.25"
+
+# Mail processing
+mail-parser = "0.11"
+# mail-auth is held at 0.8 rather than 0.9: mail-send 0.6 requires mail-auth ^0.8, and
+# mail-auth 0.9 (the only release on stable hickory) has no compatible mail-send yet.
+# Revisit once mail-send ships a release built against mail-auth 0.9.
+mail-auth = "0.8"
+mail-send = "0.6"
+smtp-proto = "0.2"
+calcard = "0.3"
+quick-xml = "0.41"
+
+# Crypto and authentication
+argon2 = "0.5"
+aes-gcm-siv = "0.11"
+totp-rs = "5.6"
+rand = "0.9"
+blake3 = "1.5"
+
+# Static asset embedding
+rust-embed = "8.6"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling and utilities
+thiserror = "2.0"
+arc-swap = "1.7"
+parking_lot = "0.12"
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+
+# Argon2 at opt-level 0 costs ~1s per verification, dominating every auth test suite.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+debug = false
+codegen-units = 1
+lto = true
+strip = true
+panic = "unwind"
+incremental = false
+
+[profile.test]
+opt-level = 0
+debug = true
+incremental = true

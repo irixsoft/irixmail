@@ -1,0 +1,26 @@
+[package]
+name = "irixmail-dns"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "DNS tooling for IRIXMAIL: a resolver wrapper for delivery and policy lookups, generation of the records a domain needs, live verification of those records, and reverse-DNS (PTR) checks."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+hickory-resolver = { workspace = true }
+# DKIM key generation: RSA-2048 via `rsa` (its key generation needs a rand_core
+# 0.6 RNG, which `rand` 0.8 provides through OsRng), and Ed25519 via `ring`, the
+# same backend mail-auth signs with so the generated PKCS#8 keys load directly.
+rsa = "0.9"
+rand = "0.8"
+ring = "0.17"
+base64 = "0.22"

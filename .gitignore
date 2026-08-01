@@ -1,0 +1,17 @@
+# Rust build artifacts
+/target
+
+# Runtime configuration and secrets
+config.toml
+.env
+
+# Frontend build outputs and dependencies
+node_modules/
+frontend/admin/dist/
+frontend/webmail/dist/
+frontend/**/.vite/
+*.tsbuildinfo
+crates/http/assets/
+
+# OS and editor cruft
+.DS_Store

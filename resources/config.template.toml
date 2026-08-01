@@ -1,0 +1,41 @@
+# IRIXMAIL bootstrap configuration.
+#
+# Only the minimum needed to start the server lives here. Everything else —
+# domains, accounts, DNS, anti-spam policies, and TLS state — is managed from
+# the admin panel and stored in the RocksDB registry.
+
+[paths]
+db = "/var/lib/irixmail/db"
+blobs = "/var/lib/irixmail/blobs"
+logs = "/var/log/irixmail"
+secret-key = "/var/lib/irixmail/credential.key"
+
+[server]
+hostname = "mail.example.com"
+node-id = 0
+
+[listeners]
+bind = "0.0.0.0"
+
+[listeners.smtp]
+plain = 25
+
+[listeners.submission]
+plain = 587
+tls = 465
+
+[listeners.imap]
+plain = 143
+tls = 993
+
+[listeners.pop3]
+plain = 110
+tls = 995
+
+[listeners.http]
+plain = 80
+tls = 443
+
+[log]
+target = "journald"
+level = "info"

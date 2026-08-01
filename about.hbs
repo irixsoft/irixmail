@@ -1,0 +1,14 @@
+{{#each licenses}}
+### {{name}}
+
+Used by:
+
+{{#each used_by}}
+- [{{crate.name}} {{crate.version}}](https://crates.io/crates/{{crate.name}})
+{{/each}}
+
+```
+{{text}}
+```
+
+{{/each}}

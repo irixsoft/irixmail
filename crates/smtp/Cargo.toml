@@ -1,0 +1,35 @@
+[package]
+name = "irixmail-smtp"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "SMTP services for IRIXMAIL: inbound reception, authenticated submission and the outbound delivery queue."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-directory = { path = "../directory" }
+irixmail-dns = { path = "../dns" }
+irixmail-mail = { path = "../mail" }
+serde = { workspace = true }
+rkyv = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+mail-auth = { workspace = true }
+mail-send = { workspace = true }
+smtp-proto = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+base64 = "0.22"
+serde_json = { workspace = true }
+
+[dev-dependencies]
+rcgen = { workspace = true }
+hickory-resolver = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -1,0 +1,29 @@
+[package]
+name = "irixmail-directory"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Directory and authentication for IRIXMAIL: principals, credentials, Argon2id hashing, TOTP and authorization."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-dns = { path = "../dns" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+argon2 = { workspace = true, features = ["std"] }
+tokio = { workspace = true }
+aes-gcm-siv = { workspace = true }
+blake3 = { workspace = true }
+totp-rs = { workspace = true, features = ["otpauth"] }
+rand = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

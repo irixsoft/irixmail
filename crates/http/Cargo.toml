@@ -1,0 +1,45 @@
+[package]
+name = "irixmail-http"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "HTTP server for IRIXMAIL: an axum router that serves the admin REST API, mounts the JMAP endpoints, embeds and serves the admin panel and webmail assets, and handles the .well-known and ACME http-01 routes."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-directory = { path = "../directory" }
+irixmail-mail = { path = "../mail" }
+irixmail-jmap = { path = "../jmap" }
+irixmail-dav = { path = "../dav" }
+irixmail-smtp = { path = "../smtp" }
+irixmail-dns = { path = "../dns" }
+irixmail-tls = { path = "../tls" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { version = "0.1", features = ["sync"] }
+axum = { workspace = true }
+hyper = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+rust-embed = { workspace = true }
+rand = { workspace = true }
+base64 = "0.22"
+ureq = "3"
+qrcode = { workspace = true }
+tokio-rustls = { workspace = true }
+hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
+rcgen = { workspace = true }
+rustls = { workspace = true }
+totp-rs = { workspace = true }

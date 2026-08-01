@@ -1,0 +1,38 @@
+pub mod dkim_keys;
+pub mod dnsbl;
+pub mod lookup;
+pub mod ptr;
+pub mod public_ip;
+pub mod rec_a;
+pub mod rec_autoconfig;
+pub mod rec_dkim;
+pub mod rec_dmarc;
+pub mod rec_mtasts;
+pub mod rec_mx;
+pub mod rec_spf;
+pub mod rec_tlsrpt;
+pub mod records;
+pub mod resolver;
+pub mod server;
+pub mod verify;
+pub mod zone;
+
+pub use dkim_keys::{DkimAlgorithm, DkimKey};
+pub use dnsbl::DnsblListing;
+pub use lookup::{host_ips, mx_hosts, MailExchange};
+pub use ptr::{PtrCheck, PtrStatus};
+pub use rec_a::{a_record, aaaa_record};
+pub use rec_autoconfig::autoconfig_records;
+pub use rec_dkim::dkim_record;
+pub use rec_dmarc::dmarc_record;
+pub use rec_mtasts::{mtasts_host_record, mtasts_policy, mtasts_record, MtaStsMode};
+pub use rec_mx::{mx_record, DnsRecord, DnsRecordKind, DEFAULT_TTL};
+pub use rec_spf::spf_record;
+pub use rec_tlsrpt::tlsrpt_record;
+pub use records::{domain_records, DomainRecordsInput};
+pub use resolver::Resolver;
+pub use server::DnsServices;
+pub use verify::{verify_all, verify_record, CheckStatus, RecordCheck};
+pub use zone::zone_file;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");

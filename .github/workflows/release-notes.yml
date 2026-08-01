@@ -1,0 +1,28 @@
+name: Release notes
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  push:
+    branches: [main]
+    paths: [".github/RELEASE_NOTES.md"]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)"
+          gh release view "v$version" >/dev/null 2>&1 || exit 0
+          gh release edit "v$version" --notes-file .github/RELEASE_NOTES.md

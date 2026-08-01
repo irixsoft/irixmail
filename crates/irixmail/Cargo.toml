@@ -1,0 +1,35 @@
+[package]
+name = "irixmail"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description.workspace = true
+
+[[bin]]
+name = "irixmail"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+tokio = { workspace = true }
+tracing = { workspace = true }
+rpassword = "7"
+ureq = "3"
+ring = "0.17"
+irixmail-core = { path = "../core" }
+irixmail-store = { path = "../store" }
+irixmail-directory = { path = "../directory" }
+irixmail-dns = { path = "../dns" }
+irixmail-http = { path = "../http" }
+irixmail-imap = { path = "../imap" }
+irixmail-mail = { path = "../mail" }
+irixmail-pop3 = { path = "../pop3" }
+irixmail-smtp = { path = "../smtp" }
+irixmail-tls = { path = "../tls" }
+axum = { workspace = true }

@@ -1,0 +1,24 @@
+[package]
+name = "irixmail-store"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Storage layer for IRIXMAIL: the embedded RocksDB store, filesystem blob store, storage traits and full-text search."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+blake3 = { workspace = true }
+rkyv = { workspace = true }
+roaring = { workspace = true }
+rand = { workspace = true }
+rocksdb = { workspace = true, features = ["multi-threaded-cf"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
