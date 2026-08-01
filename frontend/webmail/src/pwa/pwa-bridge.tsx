@@ -1,9 +1,12 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { toast } from "@irixmail/shared";
+
 import { useJmap } from "@/lib/jmap";
 import { router } from "@/router";
 import { removePending } from "./pending-verifications";
+import { acceptUpdate, reloadOnControllerChange, watchForUpdate } from "./sw-update";
 import { drainPendingVerifications, verifySubscription } from "./web-push";
 
 function routerPath(url: string): string | null {
@@ -28,7 +31,41 @@ export function PwaBridge() {
       });
       return;
     }
-    void navigator.serviceWorker.register("sw.js");
+    const container = navigator.serviceWorker;
+    const stopReload = reloadOnControllerChange(container, () => window.location.reload());
+    let registration: ServiceWorkerRegistration | undefined;
+    let stopWatch: (() => void) | undefined;
+    let timer: number | undefined;
+    const checkForUpdate = () => void registration?.update().catch(() => undefined);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
+    void container
+      .register("sw.js")
+      .then((reg) => {
+        registration = reg;
+        stopWatch = watchForUpdate(
+          reg,
+          () => Boolean(container.controller),
+          () => {
+            toast("Update available", {
+              id: "sw-update",
+              duration: Infinity,
+              description: "A new version of the webmail is ready.",
+              action: { label: "Refresh", onClick: () => acceptUpdate(reg) },
+            });
+          },
+        );
+        timer = window.setInterval(checkForUpdate, 60 * 60 * 1000);
+        document.addEventListener("visibilitychange", onVisible);
+      })
+      .catch(() => undefined);
+    return () => {
+      stopReload();
+      stopWatch?.();
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   React.useEffect(() => {

@@ -16,7 +16,6 @@ const PRECACHED = new Set(PRECACHE);
 const INDEX_URL = `${BASE}index.html`;
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   event.waitUntil(
     (async () => {
       if (!PRECACHE.length) return;
@@ -24,6 +23,10 @@ self.addEventListener("install", (event) => {
       await cache.addAll(PRECACHE);
     })().catch(() => undefined),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
