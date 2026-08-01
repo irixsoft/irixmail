@@ -2,11 +2,39 @@ import { cn } from "@irixmail/shared";
 
 export function Brand({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center gap-2 font-mono text-sm font-semibold tracking-tight", className)}>
-      <span className="inline-flex size-2 rounded-full bg-primary shadow-[0_0_10px] shadow-primary/60" />
-      <span className="text-foreground">
-        IRIX<span className="text-primary">MAIL</span>
-      </span>
-    </div>
+    <svg
+      viewBox="0 0 200 50"
+      role="img"
+      aria-label="IRIXMAIL"
+      className={cn("h-6 w-auto", className)}
+    >
+      <path fill="currentColor" d="m184.66 19.5v22.69h-5.31v-22.69z" />
+      <path fill="#ba7419" fillRule="evenodd" d="m182 17.59l-3.76-3.75 3.76-3.76 3.76 3.76z" />
+      <path fill="currentColor" d="m59.38 19.12v22.91h-5.35v-22.91z" />
+      <path
+        fill="currentColor"
+        d="m71.02 20.07q-1.64 0.9-2.63 2.41v-3.36h-5.1v22.91h5.35v-11.11q0-3.51 1.8-5.29 1.8-1.79 4.86-1.79 0.29 0 0.59 0.02 0.3 0.03 0.65 0.11v-5.1q-3.31 0-5.52 1.2z"
+      />
+      <path fill="currentColor" d="m85.58 19.12v22.91h-5.36v-22.91z" />
+      <path
+        fill="currentColor"
+        d="m111.31 42.03l-8.96-11.71 8.58-11.2h-5.8l-5.63 7.5-5.6-7.5h-5.97l8.56 11.27-8.94 11.64h5.92l5.93-7.91 5.86 7.91z"
+      />
+      <path fill="#ba7419" fillRule="evenodd" d="m56.71 17.2l-3.79-3.79 3.79-3.79 3.78 3.79z" />
+      <path fill="#ba7419" fillRule="evenodd" d="m82.9 17.2l-3.79-3.79 3.79-3.79 3.79 3.79z" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="m119 41.81h-5.36v-22.88h5.11v2.65l0.03 0.01c0.63-0.73 1.41-1.24 2.4-1.77q2.22-1.17 5.07-1.17 3.2 0 5.56 1.6 1.31 0.86 2.13 2.22h0.03q1.01-1.33 2.55-2.27 2.62-1.55 5.99-1.55 2.77 0 4.85 1.09 2.16 1.05 3.34 3.29 1.23 2.2 1.23 5.67v13.11h-5.36v-12.41q0-3.05-1.35-4.52-1.34-1.52-3.8-1.52-1.76 0-3.15 0.79-1.32 0.73-2.1 2.27-0.71 1.46-0.71 3.76v11.63h-5.35v-12.41q0-3.05-1.35-4.52-1.33-1.52-3.8-1.52-1.76 0-3.14 0.79-1.33 0.73-2.1 2.27-0.72 1.46-0.72 3.76z"
+      />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="m175.72 41.81h-5.07v-2.74q-0.8 1.17-2.18 1.93-1.95 1.09-4.99 1.09-2.61 0-4.56-0.84-1.91-0.91-2.96-2.44-1.03-1.58-1.03-3.56 0-1.93 0.91-3.43 0.96-1.57 3.04-2.44 2.11-0.94 5.57-0.94h5.92v-0.35q0-2.35-1.47-3.64-1.38-1.33-4.25-1.33-1.93 0-3.8 0.64-1.83 0.57-3.14 1.61l-2.08-3.88q1.83-1.4 4.36-2.1 2.59-0.74 5.33-0.74 4.95 0 7.66 2.41 2.74 2.35 2.74 7.33zm-10.89-9.82q-2.73 0-3.68 0.9-0.95 0.86-0.95 2.15 0 1.45 1.12 2.31 1.21 0.85 3.24 0.85 2 0 3.53-0.85 1.6-0.94 2.28-2.69v-2.67z"
+      />
+      <path fill="currentColor" fillRule="evenodd" d="m194.6 10v31.81h-5.36v-31.81z" />
+      <path fill="#ba7419" fillRule="evenodd" d="m44.62 44.17h-38.04v-38.04z" />
+      <path fill="#ebb353" fillRule="evenodd" d="m46.27 45.82v-41.34h-41.35z" />
+    </svg>
   );
 }

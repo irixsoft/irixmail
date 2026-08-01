@@ -18,6 +18,8 @@ import {
 } from "@irixmail/shared";
 import { BookUser, Calendar, LogOut, Mail, Moon, Search, Settings, Sun, type LucideIcon } from "lucide-react";
 
+import brandIcon from "@/assets/icon.svg";
+
 import { loadThemeMode, setThemeMode } from "@/lib/theme";
 import { useLogout } from "@/lib/use-logout";
 
@@ -76,9 +78,7 @@ export function Rail() {
   return (
     <TooltipProvider delayDuration={300}>
       <aside className="flex w-14 shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar py-3">
-        <div className="mb-4 flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm">
-          <Mail className="size-4.5" />
-        </div>
+        <img src={brandIcon} alt="IRIXMAIL" className="mb-4 size-9 rounded-xl shadow-sm" />
         <nav className="flex flex-col items-center gap-2">
           <RailLink to="/" icon={Mail} label="Mail" active={!NON_MAIL_SECTIONS.includes(section)} />
           <RailLink to="/calendar" icon={Calendar} label="Calendar" active={section === "calendar"} />

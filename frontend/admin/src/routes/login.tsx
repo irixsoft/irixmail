@@ -73,7 +73,7 @@ export function LoginPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/10 to-transparent" />
       <div className="relative w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <Brand className="text-base" />
+          <Brand className="h-8" />
           <div>
             <h1 className="text-lg font-semibold">Admin panel</h1>
             <p className="text-sm text-muted-foreground">Sign in to manage your mail server</p>
