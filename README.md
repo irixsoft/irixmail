@@ -11,7 +11,7 @@ SMTP · IMAP · POP3 · JMAP · Webmail · Admin panel — no Postfix, no Doveco
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux%20x86__64%20%7C%20arm64-lightgrey.svg)](https://github.com/irixsoft/irixmail/releases)
 [![Release](https://img.shields.io/github/v/release/irixsoft/irixmail?include_prereleases)](https://github.com/irixsoft/irixmail/releases)
 
-[Install](#install) · [Webmail](#webmail) · [Features](#features) · [CLI](#cli-reference) · [Build from source](#build-from-source)
+[Install](#install) · [Webmail](#webmail) · [Features](#features) · [CLI](#cli-reference)
 
 </div>
 
