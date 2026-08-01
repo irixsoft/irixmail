@@ -11,7 +11,8 @@ frontend/admin/dist/
 frontend/webmail/dist/
 frontend/**/.vite/
 *.tsbuildinfo
-crates/http/assets/
+crates/http/assets/admin/
+crates/http/assets/webmail/
 
 # OS and editor cruft
 .DS_Store
