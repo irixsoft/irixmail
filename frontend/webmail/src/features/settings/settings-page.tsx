@@ -3,6 +3,7 @@ import { cn } from "@irixmail/shared";
 import {
   Bell,
   CalendarClock,
+  Filter,
   LogOut,
   Palette,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
 import { AccountSection } from "./account-section";
 import { AppearanceSection } from "./appearance-section";
 import { AutoReplySection } from "./autoreply-section";
+import { FiltersSection } from "./filters-section";
 import { NotificationsSection } from "./notifications-section";
 import { SecuritySection } from "./security-section";
 import { TagsSection } from "./tags-section";
@@ -42,6 +44,13 @@ const SECTIONS = [
     description: "Reply automatically while you are away.",
     icon: CalendarClock,
     component: AutoReplySection,
+  },
+  {
+    id: "filters",
+    label: "Filters",
+    description: "Sort incoming mail with rules.",
+    icon: Filter,
+    component: FiltersSection,
   },
   {
     id: "appearance",
