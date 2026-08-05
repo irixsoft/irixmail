@@ -1,0 +1,67 @@
+[
+  [
+    0,
+    {
+      "AddFlag": [
+        "\\Seen",
+        "\\Flagged"
+      ]
+    }
+  ],
+  [
+    1,
+    {
+      "SetFlag": [
+        "one",
+        "two",
+        "three"
+      ]
+    }
+  ],
+  [
+    2,
+    {
+      "RemoveFlag": [
+        "two"
+      ]
+    }
+  ],
+  [
+    3,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "x-priority"
+          ],
+          "keys": [
+            "1"
+          ],
+          "match_type": "Contains",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    4,
+    {
+      "Jz": 7
+    }
+  ],
+  [
+    5,
+    {
+      "AddFlag": [
+        "$label:urgent"
+      ]
+    }
+  ],
+  [
+    6,
+    {
+      "FileInto": "Priority"
+    }
+  ]
+]

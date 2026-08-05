@@ -14,6 +14,7 @@ members = [
     "crates/http",
     "crates/tls",
     "crates/dns",
+    "crates/sieve",
 ]
 
 [workspace.package]

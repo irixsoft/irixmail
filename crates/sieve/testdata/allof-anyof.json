@@ -1,0 +1,115 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Exists": {
+          "headers": [
+            "from"
+          ],
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 5
+    }
+  ],
+  [
+    2,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "subject"
+          ],
+          "keys": [
+            "a"
+          ],
+          "match_type": "Contains",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    3,
+    {
+      "Jnz": 5
+    }
+  ],
+  [
+    4,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "subject"
+          ],
+          "keys": [
+            "b"
+          ],
+          "match_type": "Contains",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    5,
+    {
+      "Jz": 7
+    }
+  ],
+  [
+    6,
+    "Discard"
+  ],
+  [
+    7,
+    {
+      "Test": {
+        "Exists": {
+          "headers": [
+            "list-id"
+          ],
+          "is_not": true
+        }
+      }
+    }
+  ],
+  [
+    8,
+    {
+      "Jnz": 10
+    }
+  ],
+  [
+    9,
+    {
+      "Test": {
+        "Exists": {
+          "headers": [
+            "precedence"
+          ],
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    10,
+    {
+      "Jz": 12
+    }
+  ],
+  [
+    11,
+    "Keep"
+  ]
+]

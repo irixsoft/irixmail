@@ -1,0 +1,64 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Address": {
+          "headers": [
+            "from"
+          ],
+          "keys": [
+            "*.example.com",
+            "example.?rg"
+          ],
+          "part": "Domain",
+          "match_type": "Matches",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 3
+    }
+  ],
+  [
+    2,
+    {
+      "FileInto": "Partners"
+    }
+  ],
+  [
+    3,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "list-id"
+          ],
+          "keys": [
+            "*<deals.*>*"
+          ],
+          "match_type": "Matches",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    4,
+    {
+      "Jz": 6
+    }
+  ],
+  [
+    5,
+    {
+      "FileInto": "Deals"
+    }
+  ]
+]

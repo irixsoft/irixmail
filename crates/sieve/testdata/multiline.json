@@ -1,0 +1,32 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "subject"
+          ],
+          "keys": [
+            "line one\r\n.stuffed\r\n"
+          ],
+          "match_type": "Is",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 3
+    }
+  ],
+  [
+    2,
+    {
+      "FileInto": "@archive"
+    }
+  ]
+]

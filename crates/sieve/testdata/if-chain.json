@@ -1,0 +1,79 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "subject"
+          ],
+          "keys": [
+            "invoice"
+          ],
+          "match_type": "Is",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 4
+    }
+  ],
+  [
+    2,
+    {
+      "FileInto": "Invoices"
+    }
+  ],
+  [
+    3,
+    {
+      "Jmp": 9
+    }
+  ],
+  [
+    4,
+    {
+      "Test": {
+        "Header": {
+          "headers": [
+            "subject",
+            "from"
+          ],
+          "keys": [
+            "newsletter"
+          ],
+          "match_type": "Contains",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    5,
+    {
+      "Jz": 8
+    }
+  ],
+  [
+    6,
+    {
+      "FileInto": "Newsletters"
+    }
+  ],
+  [
+    7,
+    {
+      "Jmp": 9
+    }
+  ],
+  [
+    8,
+    "Keep"
+  ]
+]

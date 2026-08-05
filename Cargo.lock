@@ -1613,6 +1613,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "irixmail-sieve"
+version = "0.1.4"
+dependencies = [
+ "mail-parser",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "irixmail-smtp"
 version = "0.1.4"
 dependencies = [

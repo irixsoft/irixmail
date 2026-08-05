@@ -1,0 +1,61 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Envelope": {
+          "parts": [
+            "From"
+          ],
+          "keys": [
+            "example.com"
+          ],
+          "part": "Domain",
+          "match_type": "Is",
+          "comparator": "AsciiCaseMap",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 3
+    }
+  ],
+  [
+    2,
+    "Discard"
+  ],
+  [
+    3,
+    {
+      "Test": {
+        "Envelope": {
+          "parts": [
+            "To"
+          ],
+          "keys": [
+            "admin*",
+            "postmaster"
+          ],
+          "part": "Localpart",
+          "match_type": "Matches",
+          "comparator": "Octet",
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    4,
+    {
+      "Jz": 6
+    }
+  ],
+  [
+    5,
+    "Keep"
+  ]
+]

@@ -1,0 +1,98 @@
+[
+  [
+    0,
+    {
+      "Test": {
+        "Size": {
+          "over": true,
+          "limit": 1048576,
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    1,
+    {
+      "Jz": 3
+    }
+  ],
+  [
+    2,
+    "Discard"
+  ],
+  [
+    3,
+    {
+      "Test": {
+        "Size": {
+          "over": false,
+          "limit": 10240,
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    4,
+    {
+      "Jz": 6
+    }
+  ],
+  [
+    5,
+    "Keep"
+  ],
+  [
+    6,
+    {
+      "Test": {
+        "Bool": true
+      }
+    }
+  ],
+  [
+    7,
+    {
+      "Jz": 11
+    }
+  ],
+  [
+    8,
+    {
+      "Test": {
+        "Exists": {
+          "headers": [
+            "from",
+            "date"
+          ],
+          "is_not": false
+        }
+      }
+    }
+  ],
+  [
+    9,
+    {
+      "Jz": 11
+    }
+  ],
+  [
+    10,
+    {
+      "Test": {
+        "Bool": true
+      }
+    }
+  ],
+  [
+    11,
+    {
+      "Jz": 13
+    }
+  ],
+  [
+    12,
+    "Stop"
+  ]
+]

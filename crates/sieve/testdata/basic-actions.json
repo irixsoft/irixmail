@@ -1,0 +1,26 @@
+[
+  [
+    0,
+    {
+      "FileInto": "Newsletters"
+    }
+  ],
+  [
+    1,
+    {
+      "Redirect": "elsewhere@example.net"
+    }
+  ],
+  [
+    2,
+    "Keep"
+  ],
+  [
+    3,
+    "Stop"
+  ],
+  [
+    4,
+    "Discard"
+  ]
+]

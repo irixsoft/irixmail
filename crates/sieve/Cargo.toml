@@ -1,0 +1,18 @@
+[package]
+name = "irixmail-sieve"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Sieve engine for IRIXMAIL: an RFC 5228 compiler and interpreter for delivery-time mail filtering."
+
+[dependencies]
+mail-parser = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
