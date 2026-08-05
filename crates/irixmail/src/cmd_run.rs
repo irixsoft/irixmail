@@ -13,6 +13,7 @@ use irixmail_http::{
 };
 use irixmail_imap::register_imap;
 use irixmail_mail::{purge_orphans, MailServices, PURGE_GRACE_SECS};
+use irixmail_managesieve::register_managesieve;
 use irixmail_pop3::register_pop3;
 use irixmail_smtp::{
     enqueue, register_inbound, register_inbound_tls, register_outbound, register_submission,
@@ -293,6 +294,19 @@ async fn boot(
     )
     .await
     .context("registering the POP3 listeners")?;
+
+    let managesieve = match config.listeners.managesieve.plain {
+        Some(port) => Some(socket_addr(&bind, port)?),
+        None => None,
+    };
+    register_managesieve(
+        server.registry(),
+        managesieve,
+        acceptor.clone(),
+        state.directory.clone(),
+    )
+    .await
+    .context("registering the ManageSieve listener")?;
 
     if let Some(port) = config.listeners.smtp.plain {
         let inbound = InboundServices::with_defaults(
@@ -725,6 +739,7 @@ mod tests {
         config.listeners.submission = ephemeral();
         config.listeners.imap = ephemeral();
         config.listeners.pop3 = ephemeral();
+        config.listeners.managesieve = ephemeral();
         config.listeners.http = ephemeral();
 
         let shutdown = Shutdown::new();
@@ -742,6 +757,7 @@ mod tests {
             "imap:993",
             "pop3:110",
             "pop3:995",
+            "managesieve:4190",
             "smtp:25",
             "smtps",
             "smtp:587",

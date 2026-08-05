@@ -1,0 +1,26 @@
+[package]
+name = "irixmail-managesieve"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "ManageSieve server for IRIXMAIL: RFC 5804 remote management of Sieve filter scripts."
+
+[dependencies]
+irixmail-core = { path = "../core" }
+irixmail-directory = { path = "../directory" }
+irixmail-mail = { path = "../mail" }
+irixmail-sieve = { path = "../sieve" }
+tokio = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+base64 = "0.22"
+tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+irixmail-store = { path = "../store" }

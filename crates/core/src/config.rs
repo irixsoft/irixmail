@@ -113,6 +113,7 @@ pub struct ListenersConfig {
     pub submission: ProtocolListener,
     pub imap: ProtocolListener,
     pub pop3: ProtocolListener,
+    pub managesieve: ProtocolListener,
     pub http: ProtocolListener,
 }
 
@@ -124,6 +125,7 @@ impl Default for ListenersConfig {
             submission: ProtocolListener::both(587, 465),
             imap: ProtocolListener::both(143, 993),
             pop3: ProtocolListener::both(110, 995),
+            managesieve: ProtocolListener::plain(4190),
             http: ProtocolListener::both(80, 443),
         }
     }
@@ -183,6 +185,7 @@ mod tests {
         );
         assert_eq!(config.listeners.imap, ProtocolListener::both(143, 993));
         assert_eq!(config.listeners.pop3, ProtocolListener::both(110, 995));
+        assert_eq!(config.listeners.managesieve, ProtocolListener::plain(4190));
         assert_eq!(config.listeners.http, ProtocolListener::both(80, 443));
 
         assert_eq!(config.log.target, LogTarget::Journald);

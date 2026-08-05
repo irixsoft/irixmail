@@ -31,6 +31,7 @@ fn listeners_json(listeners: &ListenersConfig) -> Value {
         "submission": [listeners.submission.plain, listeners.submission.tls],
         "imap": [listeners.imap.plain, listeners.imap.tls],
         "pop3": [listeners.pop3.plain, listeners.pop3.tls],
+        "managesieve": listeners.managesieve.plain,
         "https": listeners.http.tls,
         "http": listeners.http.plain,
     })

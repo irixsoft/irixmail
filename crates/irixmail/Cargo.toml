@@ -28,6 +28,7 @@ irixmail-directory = { path = "../directory" }
 irixmail-dns = { path = "../dns" }
 irixmail-http = { path = "../http" }
 irixmail-imap = { path = "../imap" }
+irixmail-managesieve = { path = "../managesieve" }
 irixmail-mail = { path = "../mail" }
 irixmail-pop3 = { path = "../pop3" }
 irixmail-smtp = { path = "../smtp" }

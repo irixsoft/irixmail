@@ -39,11 +39,12 @@ impl BootstrapConfig {
             )));
         }
 
-        let listeners: [(&str, &ProtocolListener); 5] = [
+        let listeners: [(&str, &ProtocolListener); 6] = [
             ("smtp", &self.listeners.smtp),
             ("submission", &self.listeners.submission),
             ("imap", &self.listeners.imap),
             ("pop3", &self.listeners.pop3),
+            ("managesieve", &self.listeners.managesieve),
             ("http", &self.listeners.http),
         ];
 
@@ -172,6 +173,7 @@ mod tests {
             [listeners.submission]
             [listeners.imap]
             [listeners.pop3]
+            [listeners.managesieve]
             [listeners.http]
         "#;
         let err = BootstrapConfig::parse(document).expect_err("no listeners fails");

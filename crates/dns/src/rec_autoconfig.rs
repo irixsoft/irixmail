@@ -9,6 +9,7 @@ const SERVICES: &[(&str, u16)] = &[
     ("_jmap._tcp", 443),
     ("_caldavs._tcp", 443),
     ("_carddavs._tcp", 443),
+    ("_sieve._tcp", 4190),
 ];
 
 const DISCOVERY_HOSTS: &[&str] = &["autoconfig", "autodiscover"];

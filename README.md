@@ -82,6 +82,8 @@ phone home screen or a desktop dock.
 - **Keyboard shortcuts** — `j`/`k` to move, `Enter` to open, `c` compose, `r`/`a`/`f`
   reply, reply all, forward, `e` archive, `#` delete, `u` read, `s` star, `x` select,
   `/` search, `⌘K` command palette, `?` for the full list.
+- **Filter rules** — sort incoming mail on the server: move to a folder, forward,
+  mark as read, or discard, matched on sender, recipient, or subject.
 - **Tags and vacation replies** — colour-coded tags and an autoresponder, configured
   in settings.
 - **Remote image blocking** — external images are blocked by default and loaded per
@@ -123,6 +125,7 @@ account at a time. Multi Account support is planned for the next major release.
 - POP3 on 110 / 995
 - JMAP (Core + Mail) over HTTPS, for the webmail and native clients alike
 - CalDAV and CardDAV, plus JMAP calendars and contacts, from the same store
+- ManageSieve on 4190, so Sieve scripts can be edited from external clients
 
 **Delivery**
 
@@ -130,6 +133,8 @@ account at a time. Multi Account support is planned for the next major release.
 - Direct-to-MX delivery, or relay through your own provider (Amazon SES and
   friends) — chosen at setup
 - Aliases, forwarding, and domain catch-all
+- Sieve filtering at delivery, on an RFC 5228 engine built in-house: the webmail rule
+  builder and ManageSieve clients drive the same per-account scripts
 - Vacation auto-responses
 
 **Authentication and anti-spam**
@@ -169,6 +174,7 @@ account at a time. Multi Account support is planned for the next major release.
 | 465 | Submission (implicit TLS) |
 | 143 / 993 | IMAP (STARTTLS / implicit) |
 | 110 / 995 | POP3 (STARTTLS / implicit) |
+| 4190 | ManageSieve (STARTTLS) |
 | 443 | HTTPS — admin panel, webmail, JMAP |
 | 80 | HTTP — ACME HTTP-01 challenge, redirect to 443 |
 
@@ -183,9 +189,11 @@ irixmail/
 │  ├─ store/          # RocksDB store + filesystem blob store + FTS
 │  ├─ directory/      # principals, credentials, Argon2id, TOTP, authz
 │  ├─ mail/           # message model, ingest, Sieve, delivery
+│  ├─ sieve/          # RFC 5228 Sieve compiler and interpreter
 │  ├─ smtp/           # inbound, submission, outbound queue
 │  ├─ imap/           # IMAP4rev1 server
 │  ├─ pop3/           # POP3 server
+│  ├─ managesieve/    # ManageSieve (RFC 5804) script management server
 │  ├─ jmap/           # JMAP Core + Mail server
 │  ├─ dav/            # CalDAV + CardDAV for native calendar and contact clients
 │  ├─ http/           # admin REST, JMAP mount, static assets, .well-known
