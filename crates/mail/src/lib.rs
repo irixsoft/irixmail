@@ -20,6 +20,8 @@ pub mod read;
 pub mod resolve;
 pub mod sanitize;
 pub mod server;
+pub mod sieve_compile;
+pub mod sieve_exec;
 pub mod subscriptions;
 pub mod thread_backfill;
 pub mod threading;
@@ -65,6 +67,12 @@ pub use read::{
 pub use resolve::{resolve, Resolution};
 pub use sanitize::{sanitize_html, Sanitized};
 pub use server::MailServices;
+pub use sieve_compile::{
+    compile_active_script, compile_rules, compile_source, compile_stored_script, emit_script,
+    script_source, stored_rule_set, Action, Comparator, CompiledScript, Condition, Field,
+    MatchType, Rule, RuleSet,
+};
+pub use sieve_exec::{execute_sieve, SieveOutcome};
 pub use thread_backfill::backfill_threads;
 pub use vacation::{
     evaluate_vacation, last_vacation_reply, record_vacation_reply, SuppressReason, VacationConfig,

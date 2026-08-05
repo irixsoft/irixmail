@@ -108,6 +108,8 @@ fn file_locally(
 ) -> Result<DeliveryAttempt> {
     let directory = &local.directory;
     let account = directory.accounts().get(account_id)?;
+    let scripts = directory.sieve().list(account.id).unwrap_or_default();
+    let compiled = irixmail_mail::compile_active_script(&scripts);
     let mut mailboxes =
         irixmail_mail::load_mailboxes(local.mail.store().as_ref(), account.id as u32)?;
     if mailboxes.is_empty() {
@@ -120,6 +122,7 @@ fn file_locally(
     let request = DeliveryRequest {
         account: &account,
         mailboxes: &mailboxes,
+        sieve: compiled.as_ref().map(|script| &script.script),
         mail_from,
         recipient,
         document_id,

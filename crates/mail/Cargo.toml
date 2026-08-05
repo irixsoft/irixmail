@@ -14,6 +14,7 @@ description = "Mail core for IRIXMAIL: the message model, MIME ingest and local 
 irixmail-core = { path = "../core" }
 irixmail-store = { path = "../store" }
 irixmail-directory = { path = "../directory" }
+irixmail-sieve = { path = "../sieve" }
 rkyv = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

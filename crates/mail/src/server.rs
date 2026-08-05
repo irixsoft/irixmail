@@ -267,6 +267,7 @@ mod tests {
         let request = DeliveryRequest {
             account: &account,
             mailboxes: &mailboxes,
+            sieve: None,
             mail_from: "someone@example.com",
             recipient: "me@example.org",
             document_id: 10,
@@ -330,6 +331,7 @@ mod tests {
         let request = DeliveryRequest {
             account: &account,
             mailboxes: &mailboxes,
+            sieve: None,
             mail_from: "someone@example.com",
             recipient: "me@example.org",
             document_id: 11,

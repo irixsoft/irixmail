@@ -4013,6 +4013,7 @@ mod tests {
             &DeliveryRequest {
                 account: &account,
                 mailboxes: &mailboxes,
+                sieve: None,
                 mail_from: "a@example.com",
                 recipient: "alice@example.com",
                 document_id: 1,
@@ -4066,6 +4067,7 @@ mod tests {
             &DeliveryRequest {
                 account: &account,
                 mailboxes: &mailboxes,
+                sieve: None,
                 mail_from: "alice@example.com",
                 recipient: "alice@example.com",
                 document_id: 1,
@@ -4121,6 +4123,7 @@ mod tests {
             &DeliveryRequest {
                 account: &account,
                 mailboxes: &mailboxes,
+                sieve: None,
                 mail_from: "a@example.com",
                 recipient: "alice@example.com",
                 document_id: 1,
@@ -4169,6 +4172,7 @@ mod tests {
             &DeliveryRequest {
                 account: &account,
                 mailboxes: &mailboxes,
+                sieve: None,
                 mail_from: "a@example.com",
                 recipient: "alice@example.com",
                 document_id: 1,
@@ -4251,6 +4255,7 @@ mod tests {
                 &DeliveryRequest {
                     account: &account,
                     mailboxes: &mailboxes,
+                    sieve: None,
                     mail_from: "x@x.com",
                     recipient: "alice@example.com",
                     document_id,
@@ -4407,6 +4412,7 @@ mod tests {
                 &DeliveryRequest {
                     account: &account,
                     mailboxes: &mailboxes,
+                    sieve: None,
                     mail_from: "x@x.com",
                     recipient: "alice@example.com",
                     document_id,
@@ -4534,6 +4540,7 @@ mod tests {
                 &DeliveryRequest {
                     account: &account,
                     mailboxes: &mailboxes,
+                    sieve: None,
                     mail_from: "x@x.com",
                     recipient: "alice@example.com",
                     document_id,
@@ -4659,6 +4666,7 @@ mod tests {
                 &DeliveryRequest {
                     account: &account,
                     mailboxes: &mailboxes,
+                    sieve: None,
                     mail_from: "a@example.com",
                     recipient: "alice@example.com",
                     document_id,

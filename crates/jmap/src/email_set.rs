@@ -266,6 +266,7 @@ fn create_email(ctx: &JmapContext, account: u32, object: &Value) -> Result<u32> 
     let request = DeliveryRequest {
         account: &record,
         mailboxes: &mailboxes,
+        sieve: None,
         mail_from: &self_email,
         recipient: &self_email,
         document_id,

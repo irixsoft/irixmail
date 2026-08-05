@@ -1026,6 +1026,8 @@ where
                 Resolution::Local { account_id, .. } => {
                     match directory.accounts().get(account_id) {
                         Ok(account) => {
+                            let scripts = directory.sieve().list(account.id).unwrap_or_default();
+                            let compiled = irixmail_mail::compile_active_script(&scripts);
                             let mut mailboxes = irixmail_mail::load_mailboxes(
                                 mail.store().as_ref(),
                                 account.id as u32,
@@ -1034,7 +1036,13 @@ where
                                 mailboxes = provision_mailboxes(account.created_at);
                             }
                             let document_id = self.next_document_id(services, account.id)?;
-                            recipients.push((account, recipient.clone(), mailboxes, document_id));
+                            recipients.push((
+                                account,
+                                recipient.clone(),
+                                mailboxes,
+                                compiled,
+                                document_id,
+                            ));
                         }
                         Err(err) => {
                             tracing::warn!(
@@ -1115,9 +1123,10 @@ where
         let requests: Vec<DeliveryRequest> = recipients
             .iter()
             .map(
-                |(account, recipient, mailboxes, document_id)| DeliveryRequest {
+                |(account, recipient, mailboxes, compiled, document_id)| DeliveryRequest {
                     account,
                     mailboxes,
+                    sieve: compiled.as_ref().map(|script| &script.script),
                     mail_from,
                     recipient,
                     document_id: *document_id,
@@ -1129,6 +1138,16 @@ where
             .collect();
 
         let outcome = crate::deliver_hook::deliver_inbound(mail, &requests)?;
+        for (delivery, (_, recipient, ..)) in outcome.deliveries.iter().zip(&recipients) {
+            if delivery.discarded {
+                tracing::warn!(
+                    target: "irixmail::smtp::inbound",
+                    sid = self.sid,
+                    recipient = %recipient,
+                    "sieve discarded the message"
+                );
+            }
+        }
         let refused_everywhere = outcome
             .deliveries
             .iter()
@@ -2244,6 +2263,134 @@ mod tests {
         let accepted = session.accepted.take();
         let out = std::mem::take(&mut session.stream.get_mut().output);
         (out, accepted)
+    }
+
+    fn seed_filtered_account(directory: &Directory, rules: serde_json::Value) -> u64 {
+        use irixmail_directory::{AddressEntry, Role};
+        let domain = directory.domains().create("d.example", Vec::new()).unwrap();
+        let account = directory
+            .accounts()
+            .create("c", domain.id, "", Role::User)
+            .unwrap();
+        directory
+            .addresses()
+            .set(AddressEntry::account("c@d.example", account.id))
+            .unwrap();
+        directory
+            .sieve()
+            .create(account.id, "filters", "", Some(rules))
+            .unwrap();
+        account.id
+    }
+
+    fn filtered_session(
+        rules: serde_json::Value,
+    ) -> (Session<Pipe>, u64, Arc<dyn irixmail_store::Store>) {
+        let mut account_id = 0u64;
+        let session = inbound_session(
+            RECEIPT_MESSAGE,
+            std::time::Duration::ZERO,
+            crate::ratelimit_in::RateLimits::default(),
+            |directory| {
+                account_id = seed_filtered_account(directory, rules);
+            },
+        );
+        let store = Arc::clone(session.inbound_services().unwrap().mail().store());
+        store
+            .batch(&irixmail_mail::provision_ops(account_id as u32, 0))
+            .unwrap();
+        (session, account_id, store)
+    }
+
+    #[tokio::test]
+    async fn a_stored_filter_files_inbound_mail_into_the_named_folder() {
+        use irixmail_mail::{Mailbox as MailFolder, SpecialUse};
+        let rules = serde_json::json!([{
+            "id": "r1", "name": "receipts", "field": "subject", "operator": "contains",
+            "value": "receipt", "action": "fileinto", "target": "Receipts"
+        }]);
+        let (session, account_id, store) = filtered_session(rules);
+        store
+            .batch(&irixmail_mail::mailbox_ops(
+                account_id as u32,
+                &[MailFolder::new(6, "Receipts", SpecialUse::None, 1)],
+            ))
+            .unwrap();
+
+        let (out, _) = drive_inbound(session).await;
+        assert!(String::from_utf8(out)
+            .unwrap()
+            .contains("250 2.0.0 Message accepted"));
+
+        let data = irixmail_mail::load_data(store.as_ref(), account_id as u32, 1)
+            .unwrap()
+            .expect("the message was stored");
+        assert_eq!(data.mailboxes.len(), 1);
+        assert_eq!(data.mailboxes[0].mailbox_id, 6);
+    }
+
+    #[tokio::test]
+    async fn a_stored_discard_filter_accepts_and_stores_nothing() {
+        let rules = serde_json::json!([{
+            "id": "r1", "name": "drop", "field": "subject", "operator": "contains",
+            "value": "receipt", "action": "discard", "target": ""
+        }]);
+        let (session, account_id, store) = filtered_session(rules);
+
+        let (out, _) = drive_inbound(session).await;
+        assert!(String::from_utf8(out)
+            .unwrap()
+            .contains("250 2.0.0 Message accepted"));
+
+        let data = irixmail_mail::load_data(store.as_ref(), account_id as u32, 1).unwrap();
+        assert!(data.is_none(), "a discarded message must not be stored");
+    }
+
+    #[tokio::test]
+    async fn a_stored_forward_filter_enqueues_a_relay_copy() {
+        let rules = serde_json::json!([{
+            "id": "r1", "name": "fwd", "field": "subject", "operator": "contains",
+            "value": "receipt", "action": "forward", "target": "fwd@remote.example"
+        }]);
+        let (session, account_id, store) = filtered_session(rules);
+
+        let (out, _) = drive_inbound(session).await;
+        assert!(String::from_utf8(out)
+            .unwrap()
+            .contains("250 2.0.0 Message accepted"));
+
+        let queued = crate::queue_enqueue::load(store.as_ref(), 1)
+            .unwrap()
+            .expect("the relay copy was queued");
+        assert_eq!(queued.recipients.len(), 1);
+        assert_eq!(queued.recipients[0].address, "fwd@remote.example");
+        assert_eq!(queued.return_path, "a@b.example");
+
+        let data = irixmail_mail::load_data(store.as_ref(), account_id as u32, 1)
+            .unwrap()
+            .expect("the local copy was kept");
+        assert_eq!(data.mailboxes[0].mailbox_id, irixmail_mail::INBOX_ID);
+    }
+
+    #[tokio::test]
+    async fn a_stored_mark_read_filter_stores_the_message_seen() {
+        use irixmail_mail::Keyword;
+        let rules = serde_json::json!([{
+            "id": "r1", "name": "read", "field": "from", "operator": "contains",
+            "value": "a@b.example", "action": "markRead", "target": ""
+        }]);
+        let (session, account_id, store) = filtered_session(rules);
+
+        let (out, _) = drive_inbound(session).await;
+        assert!(String::from_utf8(out)
+            .unwrap()
+            .contains("250 2.0.0 Message accepted"));
+
+        let data = irixmail_mail::load_data(store.as_ref(), account_id as u32, 1)
+            .unwrap()
+            .expect("the message was stored");
+        assert!(data.keywords.contains(&Keyword::Seen));
+        assert_eq!(data.mailboxes[0].mailbox_id, irixmail_mail::INBOX_ID);
     }
 
     async fn counting_dns_sink() -> (

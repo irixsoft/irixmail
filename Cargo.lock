@@ -1582,6 +1582,7 @@ dependencies = [
  "blake3",
  "irixmail-core",
  "irixmail-directory",
+ "irixmail-sieve",
  "irixmail-store",
  "mail-builder",
  "mail-parser",

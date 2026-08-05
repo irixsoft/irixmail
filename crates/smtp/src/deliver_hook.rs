@@ -429,6 +429,7 @@ mod tests {
         DeliveryRequest {
             account,
             mailboxes,
+            sieve: None,
             mail_from: "someone@example.com",
             recipient: "me@example.org",
             document_id,
@@ -453,16 +454,15 @@ mod tests {
 
         let delivered = DeliveryOutcome {
             filed_into: vec![INBOX_ID],
-            relays: Vec::new(),
             over_quota: None,
+            ..DeliveryOutcome::default()
         };
         let refused = DeliveryOutcome {
-            filed_into: Vec::new(),
-            relays: Vec::new(),
             over_quota: Some(QuotaVerdict::OverByteQuota {
                 limit: 1,
                 would_use: 2,
             }),
+            ..DeliveryOutcome::default()
         };
         let outcome = InboundOutcome {
             deliveries: vec![delivered, refused],

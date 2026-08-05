@@ -646,6 +646,7 @@ mod tests {
                 &DeliveryRequest {
                     account: &account,
                     mailboxes: &mailboxes,
+                    sieve: None,
                     mail_from: "bob@example.net",
                     recipient: "alice@example.com",
                     document_id,

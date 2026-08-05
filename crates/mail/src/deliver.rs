@@ -6,11 +6,12 @@ use irixmail_store::{
 };
 
 use crate::blob_store_msg::{reference_op, store_blob};
-use crate::forward::{plan_forward, ForwardRelay};
+use crate::forward::{forward_to, plan_forward, ForwardRelay};
 use crate::index::message_text;
 use crate::mailbox::{Mailbox, SpecialUse};
 use crate::message_data::{Keyword, MessageData};
 use crate::quota_enforce::{enforce_quota, limits_for, QuotaVerdict};
+use crate::sieve_exec::{execute_sieve, SieveOutcome};
 
 const DELIVERY_COLLECTION: Collection = Collection::Email;
 
@@ -25,6 +26,7 @@ pub enum DeliveryTarget {
 pub struct DeliveryRequest<'a> {
     pub account: &'a Account,
     pub mailboxes: &'a [Mailbox],
+    pub sieve: Option<&'a irixmail_sieve::Script>,
     pub mail_from: &'a str,
     pub recipient: &'a str,
     pub document_id: u32,
@@ -36,7 +38,9 @@ pub struct DeliveryRequest<'a> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DeliveryOutcome {
     pub filed_into: Vec<u32>,
+    pub flags: Vec<Keyword>,
     pub relays: Vec<ForwardRelay>,
+    pub discarded: bool,
     pub over_quota: Option<QuotaVerdict>,
 }
 
@@ -60,17 +64,42 @@ pub fn deliver(
 
     let mut metadata = crate::ingest::ingest(blob_placeholder(), request.raw)?;
 
+    let sieve = match request.sieve {
+        Some(script) => execute_sieve(script, request.raw, request.mail_from, request.recipient),
+        None => SieveOutcome {
+            keep: true,
+            ..SieveOutcome::default()
+        },
+    };
+
     let forward = plan_forward(
         &request.account.forwarding,
         request.recipient,
         request.mail_from,
         request.raw,
     );
-    let relays = forward.relays;
+    let keep_local = forward.keep_local;
+    let mut relays = forward_to(
+        &sieve.redirects,
+        request.recipient,
+        request.mail_from,
+        request.raw,
+    );
+    relays.extend(forward.relays);
 
-    if !forward.keep_local {
+    if sieve.discarded {
         return Ok(DeliveryOutcome {
             relays,
+            discarded: true,
+            flags: sieve.flags,
+            ..DeliveryOutcome::default()
+        });
+    }
+
+    if !keep_local {
+        return Ok(DeliveryOutcome {
+            relays,
+            flags: sieve.flags,
             ..DeliveryOutcome::default()
         });
     }
@@ -85,7 +114,7 @@ pub fn deliver(
             .iter()
             .find(|m| m.id == id)
             .unwrap_or(inbox)],
-        None => vec![inbox],
+        None => resolve_targets(&sieve, request.mailboxes, inbox),
     };
 
     let size = request.raw.len() as u64;
@@ -95,6 +124,7 @@ pub fn deliver(
     if verdict.is_over_quota() {
         return Ok(DeliveryOutcome {
             relays,
+            flags: sieve.flags,
             over_quota: Some(verdict),
             ..DeliveryOutcome::default()
         });
@@ -117,6 +147,9 @@ pub fn deliver(
         let uid = mailbox.next_uid(store, account_id)?;
         data.add_mailbox(mailbox.id, uid);
         filed_into.push(mailbox.id);
+    }
+    for keyword in &sieve.flags {
+        data.add_keyword(keyword.clone());
     }
     let mut batch = BatchBuilder::new();
     batch.set(
@@ -170,9 +203,38 @@ pub fn deliver(
 
     Ok(DeliveryOutcome {
         filed_into,
+        flags: sieve.flags,
         relays,
+        discarded: false,
         over_quota: None,
     })
+}
+
+fn resolve_targets<'a>(
+    sieve: &SieveOutcome,
+    mailboxes: &'a [Mailbox],
+    inbox: &'a Mailbox,
+) -> Vec<&'a Mailbox> {
+    let mut targets: Vec<&Mailbox> = Vec::new();
+    let push_unique = |mailbox: &'a Mailbox, targets: &mut Vec<&'a Mailbox>| {
+        if !targets.iter().any(|m| m.id == mailbox.id) {
+            targets.push(mailbox);
+        }
+    };
+
+    for folder in &sieve.file_into {
+        let mailbox = mailboxes
+            .iter()
+            .find(|m| &m.name == folder)
+            .unwrap_or(inbox);
+        push_unique(mailbox, &mut targets);
+    }
+
+    if sieve.keep || sieve.file_into.is_empty() {
+        push_unique(inbox, &mut targets);
+    }
+
+    targets
 }
 
 pub struct AppendRequest<'a> {
@@ -486,6 +548,7 @@ mod tests {
         DeliveryRequest {
             account,
             mailboxes,
+            sieve: None,
             mail_from: "newsletter@example.com",
             recipient: "me@example.org",
             document_id,
@@ -678,11 +741,245 @@ mod tests {
 
         assert_eq!(outcome.filed_into, vec![INBOX_ID]);
         assert!(outcome.was_filed());
+        assert!(!outcome.discarded);
         assert!(!outcome.is_over_quota());
 
         let data = read_data(&store, 7, 10);
         assert_eq!(data.uid_in(INBOX_ID), Some(1));
         assert!(store.get(&metadata_key(7, 10)).unwrap().is_some());
+    }
+
+    fn compiled_actions(
+        conditions: Vec<crate::sieve_compile::Condition>,
+        actions: Vec<crate::sieve_compile::Action>,
+    ) -> crate::sieve_compile::CompiledScript {
+        crate::sieve_compile::compile_rules(&crate::sieve_compile::RuleSet {
+            rules: vec![crate::sieve_compile::Rule {
+                name: "test".to_string(),
+                enabled: true,
+                match_type: Default::default(),
+                conditions,
+                actions,
+            }],
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn a_filter_files_into_a_named_folder_with_its_flag() {
+        use crate::sieve_compile::{Action, Comparator, Condition, Field};
+        let compiled = compiled_actions(
+            vec![Condition {
+                field: Field::From,
+                comparator: Comparator::Contains,
+                value: "newsletter@example.com".to_string(),
+            }],
+            vec![
+                Action::AddFlag {
+                    flag: "\\Seen".to_string(),
+                },
+                Action::FileInto {
+                    mailbox: "Newsletters".to_string(),
+                },
+            ],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        assert_eq!(outcome.filed_into, vec![NEWSLETTERS_ID]);
+        assert!(outcome.flags.contains(&Keyword::Seen));
+        let data = read_data(&store, 7, 10);
+        assert_eq!(data.uid_in(NEWSLETTERS_ID), Some(1));
+        assert!(data.in_mailbox(NEWSLETTERS_ID));
+        assert!(!data.in_mailbox(INBOX_ID));
+        assert!(data.keywords.contains(&Keyword::Seen));
+    }
+
+    #[test]
+    fn a_fileinto_naming_a_missing_folder_falls_back_to_the_inbox() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(
+            Vec::new(),
+            vec![Action::FileInto {
+                mailbox: "Does Not Exist".to_string(),
+            }],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+        assert_eq!(outcome.filed_into, vec![INBOX_ID]);
+    }
+
+    #[test]
+    fn a_discard_stores_nothing_and_reports_discarded() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(Vec::new(), vec![Action::Discard]);
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        assert!(outcome.discarded);
+        assert!(!outcome.was_filed());
+        assert!(store.get(&data_key(7, 10)).unwrap().is_none());
+        assert!(ChangeLog::new(&store)
+            .changes_since(7, DELIVERY_COLLECTION, 0)
+            .unwrap()
+            .is_empty());
+        assert_eq!(Quota::new(&store).usage(7).unwrap().messages, 0);
+    }
+
+    #[test]
+    fn a_discarded_message_leaves_the_blob_reference_count_untouched() {
+        use crate::blob_store_msg::reference_count;
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(Vec::new(), vec![Action::Discard]);
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        deliver(&store, &blobs, &notifier, &req).unwrap();
+
+        let hash = MemBlobStore::digest(MESSAGE);
+        assert_eq!(reference_count(&store, &hash).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_redirect_relays_and_keeps_the_local_copy() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(
+            Vec::new(),
+            vec![Action::Redirect {
+                address: "forward@example.net".to_string(),
+            }],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        assert_eq!(outcome.relays.len(), 1);
+        assert_eq!(outcome.relays[0].rcpt_to, "forward@example.net");
+        assert_eq!(outcome.filed_into, vec![INBOX_ID]);
+    }
+
+    #[test]
+    fn a_discard_with_a_redirect_still_relays_the_copy() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(
+            Vec::new(),
+            vec![
+                Action::Redirect {
+                    address: "forward@example.net".to_string(),
+                },
+                Action::Discard,
+            ],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        assert!(outcome.discarded);
+        assert_eq!(outcome.relays.len(), 1);
+        assert!(store.get(&data_key(7, 10)).unwrap().is_none());
+    }
+
+    #[test]
+    fn a_spam_override_beats_a_sieve_fileinto_but_keeps_its_flags() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(
+            Vec::new(),
+            vec![
+                Action::AddFlag {
+                    flag: "\\Flagged".to_string(),
+                },
+                Action::FileInto {
+                    mailbox: "Newsletters".to_string(),
+                },
+            ],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = vec![
+            Mailbox::new(INBOX_ID, "Inbox", SpecialUse::Inbox, 1),
+            Mailbox::new(NEWSLETTERS_ID, "Newsletters", SpecialUse::None, 1),
+            Mailbox::new(5, "Spam", SpecialUse::Junk, 1),
+        ];
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+        req.target_override = Some(DeliveryTarget::Role(SpecialUse::Junk));
+
+        let outcome = deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        assert_eq!(outcome.filed_into, vec![5]);
+        assert!(outcome.flags.contains(&Keyword::Flagged));
+    }
+
+    #[test]
+    fn a_sieve_fileinto_to_a_user_folder_still_notifies_new_mail() {
+        use crate::sieve_compile::Action;
+        let compiled = compiled_actions(
+            Vec::new(),
+            vec![Action::FileInto {
+                mailbox: "Newsletters".to_string(),
+            }],
+        );
+
+        let store = MemStore::default();
+        let blobs = MemBlobStore::default();
+        let notifier = ChangeNotifier::new();
+        let mut mail_feed = notifier.subscribe_new_mail();
+        let account = account(0, 0, Forwarding::default());
+        let mailboxes = mailboxes();
+        let mut req = request(&account, &mailboxes, 10);
+        req.sieve = Some(&compiled.script);
+
+        deliver(&store, &blobs, &notifier, &req).expect("deliver");
+
+        let notice = mail_feed.try_recv().expect("a new-mail notice was sent");
+        assert_eq!(notice.mailbox_id, NEWSLETTERS_ID);
     }
 
     #[test]
