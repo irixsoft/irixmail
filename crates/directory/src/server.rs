@@ -11,6 +11,7 @@ use crate::dkim_registry::DkimKeyRegistry;
 use crate::domain_registry::DomainRegistry;
 use crate::ip_rules::IpRuleRegistry;
 use crate::recovery_admin::RecoveryAdmin;
+use crate::sieve_registry::SieveScriptRegistry;
 use crate::throttle::{Throttle, ThrottlePolicy};
 
 #[derive(Clone)]
@@ -25,6 +26,7 @@ pub struct Directory {
     throttle: Throttle,
     recovery_admin: Option<RecoveryAdmin>,
     ip_rules: IpRuleRegistry,
+    sieve: SieveScriptRegistry,
     ids: Arc<IdGenerator>,
 }
 
@@ -48,6 +50,7 @@ impl Directory {
             api_keys: ApiKeyRegistry::new(Arc::clone(&store), Arc::clone(&ids)),
             dkim: DkimKeyRegistry::new(Arc::clone(&store)),
             ip_rules: IpRuleRegistry::new(Arc::clone(&store), Arc::clone(&ids)),
+            sieve: SieveScriptRegistry::new(Arc::clone(&store), Arc::clone(&ids)),
             ids,
             addresses,
             throttle,
@@ -105,6 +108,10 @@ impl Directory {
 
     pub fn ip_rules(&self) -> &IpRuleRegistry {
         &self.ip_rules
+    }
+
+    pub fn sieve(&self) -> &SieveScriptRegistry {
+        &self.sieve
     }
 }
 
