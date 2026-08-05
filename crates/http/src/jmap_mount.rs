@@ -46,6 +46,8 @@ pub fn methods() -> jmap::Router {
         .register_stateful("SearchSnippet/get", jmap::searchsnippet_get)
         .register_stateful("VacationResponse/get", jmap::vacation_get)
         .register_stateful("VacationResponse/set", jmap::vacation_set)
+        .register_stateful("SieveScript/get", jmap::sievescript_get)
+        .register_stateful("SieveScript/set", jmap::sievescript_set)
         .register_stateful("PushSubscription/get", jmap::push_get)
         .register_stateful("PushSubscription/set", jmap::push_set)
         .register_stateful("Calendar/get", jmap::calendar_get)

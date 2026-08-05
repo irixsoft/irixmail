@@ -33,6 +33,8 @@ pub mod reply;
 pub mod request;
 pub mod searchsnippet_get;
 pub mod session;
+pub mod sievescript_get;
+pub mod sievescript_set;
 pub mod submission_get;
 pub mod submission_set;
 pub mod thread_get;
@@ -82,6 +84,8 @@ pub use session::{
     session_resource, unknown_capability, CALENDARS, CONTACTS, CORE, MAIL, MAX_SIZE_REQUEST,
     MAX_SIZE_UPLOAD, SUBMISSION, VACATION,
 };
+pub use sievescript_get::sievescript_get;
+pub use sievescript_set::sievescript_set;
 pub use submission_get::submission_get;
 pub use submission_set::submission_set;
 pub use thread_get::thread_get;
