@@ -226,12 +226,15 @@ mod tests {
     async fn a_valid_admin_bearer_token_passes() {
         let dir = TempDir::new();
         let state = state(&dir);
-        let token = state.tokens.issue(TokenInfo {
-            account_id: 1,
-            username: "admin@example.com".into(),
-            is_admin: true,
-            kind: SessionKind::Admin,
-        }).unwrap();
+        let token = state
+            .tokens
+            .issue(TokenInfo {
+                account_id: 1,
+                username: "admin@example.com".into(),
+                is_admin: true,
+                kind: SessionKind::Admin,
+            })
+            .unwrap();
         let app = admin_router(state);
         let response = app
             .oneshot(

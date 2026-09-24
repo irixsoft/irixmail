@@ -184,7 +184,8 @@ mod tests {
         let response = post_json(
             router(shared.clone()),
             "/api/auth/login",
-            r#"{"kind":"webmail","username":"alice@example.com","password":"correct horse"}"#.to_string(),
+            r#"{"kind":"webmail","username":"alice@example.com","password":"correct horse"}"#
+                .to_string(),
         )
         .await;
         assert_eq!(response.status(), StatusCode::OK);

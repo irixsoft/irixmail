@@ -222,7 +222,10 @@ mod tests {
         let shared = state(&dir);
         let token = shared.tokens.issue(info(7, SessionKind::Webmail)).unwrap();
         let reopened = Sessions::new(Arc::clone(&shared.store));
-        assert_eq!(reopened.validate(&token), Some(info(7, SessionKind::Webmail)));
+        assert_eq!(
+            reopened.validate(&token),
+            Some(info(7, SessionKind::Webmail))
+        );
     }
 
     #[test]
@@ -233,14 +236,17 @@ mod tests {
         let mut found_raw = false;
         shared
             .store
-            .iterate(&KeyPrefix::subspace(Subspace::Registry), &mut |key, value| {
-                if key.windows(token.len()).any(|w| w == token.as_bytes())
-                    || value.windows(token.len()).any(|w| w == token.as_bytes())
-                {
-                    found_raw = true;
-                }
-                Ok(Flow::Continue)
-            })
+            .iterate(
+                &KeyPrefix::subspace(Subspace::Registry),
+                &mut |key, value| {
+                    if key.windows(token.len()).any(|w| w == token.as_bytes())
+                        || value.windows(token.len()).any(|w| w == token.as_bytes())
+                    {
+                        found_raw = true;
+                    }
+                    Ok(Flow::Continue)
+                },
+            )
             .unwrap();
         assert!(!found_raw);
     }
@@ -264,7 +270,9 @@ mod tests {
         let sessions = Sessions::new(Arc::clone(&state(&dir).store));
         let token = sessions.issue_at(info(1, SessionKind::Admin), 0).unwrap();
         assert!(sessions.validate_at(&token, 11 * 60 * 60).is_some());
-        assert!(sessions.validate_at(&token, 11 * 60 * 60 + 13 * 60 * 60).is_none());
+        assert!(sessions
+            .validate_at(&token, 11 * 60 * 60 + 13 * 60 * 60)
+            .is_none());
     }
 
     #[test]
@@ -273,7 +281,9 @@ mod tests {
         let sessions = Sessions::new(Arc::clone(&state(&dir).store));
         let token = sessions.issue_at(info(1, SessionKind::Admin), 0).unwrap();
         assert!(sessions.validate_at(&token, 30 * 60).is_some());
-        assert!(sessions.validate_at(&token, 30 * 60 + 12 * 60 * 60).is_none());
+        assert!(sessions
+            .validate_at(&token, 30 * 60 + 12 * 60 * 60)
+            .is_none());
     }
 
     #[test]

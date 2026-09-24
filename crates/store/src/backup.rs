@@ -241,7 +241,12 @@ fn split_first(path: &Path) -> Result<(String, PathBuf)> {
     let mut components = path.components();
     let first = match components.next() {
         Some(Component::Normal(name)) => name.to_string_lossy().into_owned(),
-        _ => return Err(Error::invalid_input(format!("unsafe path in archive: {}", path.display()))),
+        _ => {
+            return Err(Error::invalid_input(format!(
+                "unsafe path in archive: {}",
+                path.display()
+            )))
+        }
     };
     let mut rest = PathBuf::new();
     for component in components {
@@ -285,7 +290,13 @@ pub fn utc_parts(secs: u64) -> (i64, u32, u32, u32, u32) {
     let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
     let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
     let year = yoe + era * 400 + i64::from(month <= 2);
-    (year, month, day, (rem / 3_600) as u32, ((rem % 3_600) / 60) as u32)
+    (
+        year,
+        month,
+        day,
+        (rem / 3_600) as u32,
+        ((rem % 3_600) / 60) as u32,
+    )
 }
 
 pub fn format_utc(secs: u64) -> String {
@@ -357,11 +368,19 @@ mod tests {
     fn an_archive_round_trips_the_whole_data_set() {
         let source = Tree::new("src");
         let paths = source.paths();
-        write(&paths.config_file, b"[server]\nhostname = \"old.example.com\"\n", 0o640);
+        write(
+            &paths.config_file,
+            b"[server]\nhostname = \"old.example.com\"\n",
+            0o640,
+        );
         write(&paths.secret_key, b"deadbeef", 0o600);
         write(&paths.certs.join("old.example.com.pem"), b"pem", 0o600);
         write(&paths.blobs.join("ab/cd/abcd0123"), b"blob", 0o644);
-        write(&paths.blobs.join("ab/cd/abcd0123.tmp.7.1"), b"staging", 0o644);
+        write(
+            &paths.blobs.join("ab/cd/abcd0123.tmp.7.1"),
+            b"staging",
+            0o644,
+        );
         let store = RocksdbStore::open(&paths.db).unwrap();
         store.put(&key(), b"value").unwrap();
 
@@ -377,7 +396,12 @@ mod tests {
         let leftovers: Vec<_> = fs::read_dir(&source.0)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_name().to_string_lossy().starts_with(".backup-staging"))
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".backup-staging")
+            })
             .collect();
         assert!(leftovers.is_empty(), "the staging directory is removed");
 
@@ -397,15 +421,28 @@ mod tests {
         assert!(!restored.config_file.exists());
         assert_eq!(fs::read(&restored.secret_key).unwrap(), b"deadbeef");
         assert_eq!(
-            fs::metadata(&restored.secret_key).unwrap().permissions().mode() & 0o777,
+            fs::metadata(&restored.secret_key)
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
             0o600
         );
-        assert_eq!(fs::read(restored.certs.join("old.example.com.pem")).unwrap(), b"pem");
-        assert_eq!(fs::read(restored.blobs.join("ab/cd/abcd0123")).unwrap(), b"blob");
+        assert_eq!(
+            fs::read(restored.certs.join("old.example.com.pem")).unwrap(),
+            b"pem"
+        );
+        assert_eq!(
+            fs::read(restored.blobs.join("ab/cd/abcd0123")).unwrap(),
+            b"blob"
+        );
         assert!(!restored.blobs.join("ab/cd/abcd0123.tmp.7.1").exists());
         assert!(!restored.blobs.join("stale").exists());
         let reopened = RocksdbStore::open(&restored.db).unwrap();
-        assert_eq!(reopened.get(&key()).unwrap().as_deref(), Some(&b"value"[..]));
+        assert_eq!(
+            reopened.get(&key()).unwrap().as_deref(),
+            Some(&b"value"[..])
+        );
     }
 
     #[test]
@@ -423,12 +460,20 @@ mod tests {
             File::create(&file).unwrap(),
             Compression::fast(),
         ));
-        append_bytes(&mut builder, MANIFEST, &serde_json::to_vec(&manifest).unwrap()).unwrap();
+        append_bytes(
+            &mut builder,
+            MANIFEST,
+            &serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
         builder.into_inner().unwrap().finish().unwrap();
 
         let error = unpack(&file, &tree.paths()).unwrap_err().to_string();
         assert!(error.contains("schema"), "{error}");
-        assert!(!tree.paths().db.exists(), "nothing is touched before the check");
+        assert!(
+            !tree.paths().db.exists(),
+            "nothing is touched before the check"
+        );
     }
 
     #[test]

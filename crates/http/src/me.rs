@@ -187,12 +187,15 @@ mod tests {
     use crate::tests_support::{state, TempDir};
 
     fn user_token(shared: &AppState, account_id: u64) -> String {
-        shared.tokens.issue(TokenInfo {
-            account_id,
-            username: "alice@example.com".into(),
-            is_admin: false,
-            kind: SessionKind::Webmail,
-        }).unwrap()
+        shared
+            .tokens
+            .issue(TokenInfo {
+                account_id,
+                username: "alice@example.com".into(),
+                is_admin: false,
+                kind: SessionKind::Webmail,
+            })
+            .unwrap()
     }
 
     #[tokio::test]

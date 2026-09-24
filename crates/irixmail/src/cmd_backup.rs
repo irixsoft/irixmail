@@ -23,17 +23,19 @@ pub fn run(destination: &Path) -> Result<()> {
     let config_file = crate::cmd_run::config_path();
     let config = BootstrapConfig::load(&config_file)
         .with_context(|| format!("loading configuration from {}", config_file.display()))?;
-    if let Some(parent) = destination.parent().filter(|parent| !parent.as_os_str().is_empty()) {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("creating {}", parent.display()))?;
+    if let Some(parent) = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
     }
     let store = RocksdbStore::open(&config.paths.db).map_err(|error| {
         anyhow!("{error}").context(
             "opening the store; while the irixmail service runs, download the backup from the admin panel instead",
         )
     })?;
-    let file = File::create(destination)
-        .with_context(|| format!("creating {}", destination.display()))?;
+    let file =
+        File::create(destination).with_context(|| format!("creating {}", destination.display()))?;
     let paths = backup_paths(&config, &config_file);
     let manifest = write_archive(
         &paths,

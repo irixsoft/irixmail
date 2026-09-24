@@ -87,7 +87,10 @@ pub fn configure(target: &BootstrapConfig, config_file: &Path) -> Result<Option<
         }
     }
     let unpacked = unpack(&archive, &paths).map_err(|error| anyhow!("{error}"))?;
-    println!("Data restored into {}.", paths.db.parent().unwrap_or(&paths.db).display());
+    println!(
+        "Data restored into {}.",
+        paths.db.parent().unwrap_or(&paths.db).display()
+    );
     let config = unpacked
         .config_toml
         .map(|text| BootstrapConfig::parse(&text))

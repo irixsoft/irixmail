@@ -68,11 +68,11 @@ mod tests_support;
 pub use accounts_list::account_json;
 pub use app::{error_response, router, AppState, TlsHandles};
 pub use auth_mw::{authenticate_request, require_admin, require_auth, AuthIdentity};
-pub use sessions::{SessionKind, Sessions, TokenInfo};
 pub use dns_status::{recheck_all, RecheckInput};
 pub use domains_list::domain_json;
 pub use jmap_mount::methods as jmap_methods;
 pub use serve::{redirect_router, register_http, register_http_redirect, register_https};
+pub use sessions::{SessionKind, Sessions, TokenInfo};
 pub use static_assets::{rewrite_base_href, serve_asset, spa_fallback};
 pub use validate::{
     bad_request, is_valid_domain, is_valid_email, parse_id, require_field, unprocessable,

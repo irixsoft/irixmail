@@ -155,7 +155,12 @@ mod tests {
     }
 
     fn provision(shared: &AppState, local: &str, role: Role, secret: &str) -> u64 {
-        let domain = match shared.directory.domains().get_by_name("example.com").unwrap() {
+        let domain = match shared
+            .directory
+            .domains()
+            .get_by_name("example.com")
+            .unwrap()
+        {
             Some(existing) => existing,
             None => shared
                 .directory

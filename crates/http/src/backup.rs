@@ -48,8 +48,16 @@ pub async fn download(
     State(state): State<AppState>,
     Query(query): Query<DownloadQuery>,
 ) -> Response {
-    if query.ticket.is_empty() || state.backup_tickets.remove(query.ticket.as_bytes()).is_none() {
-        return error_response(StatusCode::UNAUTHORIZED, "a valid backup ticket is required");
+    if query.ticket.is_empty()
+        || state
+            .backup_tickets
+            .remove(query.ticket.as_bytes())
+            .is_none()
+    {
+        return error_response(
+            StatusCode::UNAUTHORIZED,
+            "a valid backup ticket is required",
+        );
     }
     let Some(paths) = state.backup.clone() else {
         return unavailable();
@@ -72,8 +80,12 @@ pub async fn download(
             buffer: Vec::with_capacity(CHUNK),
         };
         match write_archive(&paths, store.as_ref(), &hostname, crate::VERSION, writer) {
-            Ok(_) => tracing::info!(target: "irixmail::backup", file = %name, "backup download finished"),
-            Err(error) => tracing::warn!(target: "irixmail::backup", file = %name, error = %error, "backup download failed"),
+            Ok(_) => {
+                tracing::info!(target: "irixmail::backup", file = %name, "backup download finished")
+            }
+            Err(error) => {
+                tracing::warn!(target: "irixmail::backup", file = %name, error = %error, "backup download failed")
+            }
         }
     });
 
@@ -156,7 +168,13 @@ fn random_ticket() -> String {
 pub fn file_name(hostname: &str, secs: u64) -> String {
     let host: String = hostname
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let (year, month, day, hour, minute) = utc_parts(secs);
     format!("irixmail-backup-{host}-{year:04}{month:02}{day:02}-{hour:02}{minute:02}.tar.gz")
@@ -181,7 +199,10 @@ mod tests {
     use crate::app::router;
     use crate::tests_support::{admin_token, state, TempDir};
 
-    async fn request_ticket(shared: &AppState, token: Option<&str>) -> (StatusCode, serde_json::Value) {
+    async fn request_ticket(
+        shared: &AppState,
+        token: Option<&str>,
+    ) -> (StatusCode, serde_json::Value) {
         let mut builder = Request::builder().method("POST").uri("/api/backup/ticket");
         if let Some(token) = token {
             builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
@@ -192,7 +213,10 @@ mod tests {
             .unwrap();
         let status = response.status();
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        (status, serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
+        (
+            status,
+            serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null),
+        )
     }
 
     async fn get(shared: &AppState, uri: &str) -> axum::http::Response<Body> {
@@ -230,7 +254,10 @@ mod tests {
     async fn a_download_ticket_is_required_and_single_use() {
         let dir = TempDir::new();
         let shared = state(&dir);
-        assert_eq!(get(&shared, "/api/backup").await.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            get(&shared, "/api/backup").await.status(),
+            StatusCode::UNAUTHORIZED
+        );
         assert_eq!(
             get(&shared, "/api/backup?ticket=nope").await.status(),
             StatusCode::UNAUTHORIZED
@@ -283,6 +310,12 @@ mod tests {
         assert!(disposition.starts_with("attachment; filename=\"irixmail-backup-mail.example.com-"));
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert!(bytes.len() > 2 && bytes[0] == 0x1f && bytes[1] == 0x8b);
+        for _ in 0..500 {
+            if !shared.backup_running.load(Ordering::SeqCst) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
         assert!(!shared.backup_running.load(Ordering::SeqCst));
     }
 

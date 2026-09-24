@@ -32,12 +32,15 @@ mod tests {
     async fn logging_out_revokes_the_token() {
         let dir = TempDir::new();
         let shared = state(&dir);
-        let token = shared.tokens.issue(TokenInfo {
-            account_id: 1,
-            username: "a@b.com".into(),
-            is_admin: true,
-            kind: SessionKind::Admin,
-        }).unwrap();
+        let token = shared
+            .tokens
+            .issue(TokenInfo {
+                account_id: 1,
+                username: "a@b.com".into(),
+                is_admin: true,
+                kind: SessionKind::Admin,
+            })
+            .unwrap();
         assert!(shared.tokens.validate(&token).is_some());
 
         let app = router(shared.clone());

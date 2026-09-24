@@ -257,12 +257,15 @@ mod tests {
     async fn an_admin_sees_the_dashboard_counts() {
         let dir = TempDir::new();
         let shared = state(&dir);
-        let token = shared.tokens.issue(TokenInfo {
-            account_id: 1,
-            username: "admin@example.com".into(),
-            is_admin: true,
-            kind: SessionKind::Admin,
-        }).unwrap();
+        let token = shared
+            .tokens
+            .issue(TokenInfo {
+                account_id: 1,
+                username: "admin@example.com".into(),
+                is_admin: true,
+                kind: SessionKind::Admin,
+            })
+            .unwrap();
         let app = router(shared);
         let response = app
             .oneshot(

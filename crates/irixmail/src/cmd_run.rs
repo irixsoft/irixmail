@@ -159,7 +159,10 @@ async fn boot(
         secrets,
     );
     state.listeners = config.listeners.clone();
-    state.backup = Some(Arc::new(crate::cmd_backup::backup_paths(config, &config_path())));
+    state.backup = Some(Arc::new(crate::cmd_backup::backup_paths(
+        config,
+        &config_path(),
+    )));
     let detected = irixmail_dns::public_ip::detect_all().await;
     state.public_ipv4 = irixmail_dns::public_ip::first_v4(&detected);
     state.public_ipv6 = irixmail_dns::public_ip::first_v6(&detected);
