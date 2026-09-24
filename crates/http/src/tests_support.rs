@@ -6,7 +6,8 @@ use irixmail_core::{IdGenerator, LogBuffer};
 use irixmail_directory::{Directory, RecoveryAdmin, SecretCipher};
 use irixmail_store::{BlobStore, ChangeNotifier, FsBlobStore, RocksdbStore, Store};
 
-use crate::app::{AppState, TokenInfo};
+use crate::app::AppState;
+use crate::sessions::{SessionKind, TokenInfo};
 
 pub struct TempDir {
     pub path: PathBuf,
@@ -61,9 +62,37 @@ pub fn test_cipher() -> SecretCipher {
 }
 
 pub fn admin_token(state: &AppState) -> String {
-    state.tokens.issue(TokenInfo {
-        account_id: 1,
-        username: "admin@example.com".into(),
-        is_admin: true,
-    })
+    state
+        .tokens
+        .issue(TokenInfo {
+            account_id: 1,
+            username: "admin@example.com".into(),
+            is_admin: true,
+            kind: SessionKind::Admin,
+        })
+        .unwrap()
+}
+
+pub fn admin_mail_token(state: &AppState) -> String {
+    state
+        .tokens
+        .issue(TokenInfo {
+            account_id: 1,
+            username: "admin@example.com".into(),
+            is_admin: true,
+            kind: SessionKind::Webmail,
+        })
+        .unwrap()
+}
+
+pub fn webmail_token(state: &AppState, account_id: u64) -> String {
+    state
+        .tokens
+        .issue(TokenInfo {
+            account_id,
+            username: format!("user{account_id}@example.com"),
+            is_admin: false,
+            kind: SessionKind::Webmail,
+        })
+        .unwrap()
 }

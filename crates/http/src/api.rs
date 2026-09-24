@@ -39,6 +39,7 @@ pub(crate) fn public_routes() -> Router<AppState> {
         .route("/api/auth/login", post(crate::auth_login::login))
         .route("/api/auth/totp", post(crate::auth_totp::totp))
         .route("/api/auth/logout", post(crate::auth_logout::logout))
+        .route("/api/auth/session", get(crate::auth_session::session))
         .route("/healthz/live", get(crate::health_live::live))
         .route("/healthz/ready", get(crate::health_ready::ready))
         .route("/.well-known/jmap", get(crate::wk_jmap::well_known_jmap))

@@ -16,6 +16,7 @@ pub mod apppw_list;
 pub mod auth_login;
 pub mod auth_logout;
 pub mod auth_mw;
+pub mod auth_session;
 pub mod auth_totp;
 pub mod autoconfig;
 pub mod autodiscover;
@@ -47,6 +48,7 @@ pub mod queue_list;
 pub mod queue_retry;
 pub mod reset_2fa;
 pub mod serve;
+pub mod sessions;
 pub mod settings_get;
 pub mod settings_put;
 #[path = "static.rs"]
@@ -63,8 +65,9 @@ pub mod wk_mtasts;
 mod tests_support;
 
 pub use accounts_list::account_json;
-pub use app::{error_response, router, AppState, SessionTokens, TlsHandles, TokenInfo};
+pub use app::{error_response, router, AppState, TlsHandles};
 pub use auth_mw::{authenticate_request, require_admin, require_auth, AuthIdentity};
+pub use sessions::{SessionKind, Sessions, TokenInfo};
 pub use dns_status::{recheck_all, RecheckInput};
 pub use domains_list::domain_json;
 pub use jmap_mount::methods as jmap_methods;

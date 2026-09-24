@@ -21,7 +21,10 @@ pub async fn delete(State(state): State<AppState>, Path(id): Path<String>) -> Re
         );
     }
     match state.directory.accounts().delete(id) {
-        Ok(()) => (StatusCode::OK, Json(json!({ "ok": true }))).into_response(),
+        Ok(()) => {
+            let _ = state.tokens.revoke_account(id);
+            (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
+        }
         Err(_) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "could not delete account",

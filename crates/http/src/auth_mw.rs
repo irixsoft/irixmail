@@ -11,6 +11,7 @@ use base64::Engine as _;
 use irixmail_directory::{attempt_login_blocking, LoginAttempt, LoginPurpose, Role};
 
 use crate::app::{error_response, AppState};
+use crate::sessions::SessionKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AuthMethod {
@@ -25,11 +26,20 @@ pub struct AuthIdentity {
     pub username: String,
     pub is_admin: bool,
     pub method: AuthMethod,
+    pub kind: Option<SessionKind>,
 }
 
 impl AuthIdentity {
     pub fn interactive(&self) -> bool {
-        self.method == AuthMethod::Session
+        self.kind == Some(SessionKind::Webmail)
+    }
+
+    pub fn admin_session(&self) -> bool {
+        self.kind == Some(SessionKind::Admin)
+    }
+
+    pub fn may_use_mail(&self) -> bool {
+        self.kind != Some(SessionKind::Admin)
     }
 }
 
@@ -57,10 +67,11 @@ pub async fn require_auth(
     next: Next,
 ) -> Response {
     match authenticate_request(&state, &request).await {
-        Some(identity) => {
+        Some(identity) if identity.may_use_mail() => {
             request.extensions_mut().insert(identity);
             next.run(request).await
         }
+        Some(_) => error_response(StatusCode::UNAUTHORIZED, "webmail session required"),
         None => error_response(StatusCode::UNAUTHORIZED, "authentication required"),
     }
 }
@@ -88,6 +99,9 @@ pub async fn require_admin(
     match authenticate_request(&state, &request).await {
         Some(identity) if identity.method == AuthMethod::MailPassword => {
             error_response(StatusCode::UNAUTHORIZED, "session authentication required")
+        }
+        Some(identity) if identity.method == AuthMethod::Session && !identity.admin_session() => {
+            error_response(StatusCode::UNAUTHORIZED, "admin session required")
         }
         Some(identity) if identity.is_admin => {
             request.extensions_mut().insert(identity);
@@ -118,6 +132,7 @@ pub fn authenticate_request<'a>(
                     username: info.username,
                     is_admin: info.is_admin,
                     method: AuthMethod::Session,
+                    kind: Some(info.kind),
                 });
             }
             if let Ok(Some(key)) = state.directory.api_keys().verify(token, &state.secrets) {
@@ -126,6 +141,7 @@ pub fn authenticate_request<'a>(
                     username: format!("api-key:{}", key.name),
                     is_admin: true,
                     method: AuthMethod::ApiKey,
+                    kind: None,
                 });
             }
             return None;
@@ -156,6 +172,7 @@ async fn resolve_basic(
             username: user.to_string(),
             is_admin: account.role == Role::Admin,
             method: AuthMethod::MailPassword,
+            kind: None,
         }),
         LoginAttempt::Denied | LoginAttempt::Throttled => None,
     }
@@ -172,7 +189,7 @@ mod tests {
     use axum::Router;
     use tower::ServiceExt;
 
-    use crate::app::TokenInfo;
+    use crate::sessions::{SessionKind, TokenInfo};
     use crate::tests_support::{state, TempDir};
 
     async fn protected() -> &'static str {
@@ -213,7 +230,8 @@ mod tests {
             account_id: 1,
             username: "admin@example.com".into(),
             is_admin: true,
-        });
+            kind: SessionKind::Admin,
+        }).unwrap();
         let app = admin_router(state);
         let response = app
             .oneshot(
@@ -228,27 +246,74 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
     }
 
+    fn interactive_router(state: AppState) -> Router {
+        Router::new()
+            .route("/api/x", get(protected))
+            .route_layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                require_interactive,
+            ))
+            .with_state(state)
+    }
+
+    fn mail_router(state: AppState) -> Router {
+        Router::new()
+            .route("/api/x", get(protected))
+            .route_layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                require_auth,
+            ))
+            .with_state(state)
+    }
+
+    async fn bearer(app: Router, token: &str) -> StatusCode {
+        app.oneshot(
+            HttpRequest::builder()
+                .uri("/api/x")
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .status()
+    }
+
     #[tokio::test]
-    async fn a_non_admin_token_is_forbidden() {
+    async fn a_webmail_session_cannot_reach_admin_routes_even_for_an_admin() {
         let dir = TempDir::new();
         let state = state(&dir);
-        let token = state.tokens.issue(TokenInfo {
-            account_id: 2,
-            username: "user@example.com".into(),
-            is_admin: false,
-        });
-        let app = admin_router(state);
-        let response = app
-            .oneshot(
-                HttpRequest::builder()
-                    .uri("/api/x")
-                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        let admin_in_webmail = crate::tests_support::admin_mail_token(&state);
+        let user = crate::tests_support::webmail_token(&state, 2);
+        assert_eq!(
+            bearer(admin_router(state.clone()), &admin_in_webmail).await,
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            bearer(admin_router(state), &user).await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[tokio::test]
+    async fn an_admin_session_cannot_reach_webmail_or_mail_routes() {
+        let dir = TempDir::new();
+        let state = state(&dir);
+        let admin = crate::tests_support::admin_token(&state);
+        assert_eq!(
+            bearer(interactive_router(state.clone()), &admin).await,
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            bearer(mail_router(state.clone()), &admin).await,
+            StatusCode::UNAUTHORIZED
+        );
+        let user = crate::tests_support::webmail_token(&state, 2);
+        assert_eq!(
+            bearer(interactive_router(state.clone()), &user).await,
+            StatusCode::OK
+        );
+        assert_eq!(bearer(mail_router(state), &user).await, StatusCode::OK);
     }
 
     #[tokio::test]

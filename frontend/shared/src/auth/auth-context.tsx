@@ -49,20 +49,31 @@ function readStored(storageKey: string): AuthSession | null {
   return null;
 }
 
+export type SessionKind = "admin" | "webmail";
+
+export const LEGACY_STORAGE_KEY = "irixmail.auth";
+
+export function dropLegacySession(storage: Pick<Storage, "removeItem"> = localStorage): void {
+  try {
+    storage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export interface AuthProviderProps {
   children: React.ReactNode;
+  kind: SessionKind;
+  storageKey: string;
   baseUrl?: string;
-  storageKey?: string;
   validate?: (session: AuthSession) => Promise<boolean>;
 }
 
-function AuthProvider({
-  children,
-  baseUrl,
-  storageKey = "irixmail.auth",
-  validate,
-}: AuthProviderProps) {
-  const [session, setSession] = React.useState<AuthSession | null>(() => readStored(storageKey));
+function AuthProvider({ children, kind, storageKey, baseUrl, validate }: AuthProviderProps) {
+  const [session, setSession] = React.useState<AuthSession | null>(() => {
+    dropLegacySession();
+    return readStored(storageKey);
+  });
   const [status, setStatus] = React.useState<AuthStatus>(() =>
     readStored(storageKey) ? "loading" : "unauthenticated",
   );
@@ -139,7 +150,7 @@ function AuthProvider({
 
   const login = React.useCallback(
     async (username: string, password: string): Promise<LoginOutcome> => {
-      const result = await client.post<LoginResponse>("/api/auth/login", { username, password });
+      const result = await client.post<LoginResponse>("/api/auth/login", { kind, username, password });
       if (result?.totpRequired) {
         pendingUsername.current = username;
         return { status: "totp_required" };
@@ -152,7 +163,7 @@ function AuthProvider({
       }
       throw new Error("unexpected login response");
     },
-    [client, persist],
+    [client, kind, persist],
   );
 
   const verifyTotp = React.useCallback(

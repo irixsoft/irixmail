@@ -36,7 +36,10 @@ pub async fn set(
         );
     };
     match state.directory.credentials().set_primary_password(id, hash) {
-        Ok(()) => (StatusCode::OK, Json(json!({ "ok": true }))).into_response(),
+        Ok(()) => {
+            let _ = state.tokens.revoke_account(id);
+            (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
+        }
         Err(_) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "could not store the password",

@@ -61,7 +61,10 @@ pub async fn change_password(
         .credentials()
         .set_primary_password(identity.account_id, hash)
     {
-        Ok(()) => (StatusCode::OK, Json(json!({ "ok": true }))).into_response(),
+        Ok(()) => {
+            let _ = state.tokens.revoke_account(identity.account_id);
+            (StatusCode::OK, Json(json!({ "ok": true }))).into_response()
+        }
         Err(_) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "could not store the password",
@@ -180,7 +183,7 @@ mod tests {
     use irixmail_directory::Role;
 
     use crate::app::router;
-    use crate::app::TokenInfo;
+    use crate::sessions::{SessionKind, TokenInfo};
     use crate::tests_support::{state, TempDir};
 
     fn user_token(shared: &AppState, account_id: u64) -> String {
@@ -188,7 +191,8 @@ mod tests {
             account_id,
             username: "alice@example.com".into(),
             is_admin: false,
-        })
+            kind: SessionKind::Webmail,
+        }).unwrap()
     }
 
     #[tokio::test]

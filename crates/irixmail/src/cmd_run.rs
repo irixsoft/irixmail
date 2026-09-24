@@ -495,6 +495,21 @@ async fn boot(
             }
         });
 
+    let session_sweep = Arc::clone(&state.tokens);
+    server
+        .registry()
+        .register_background("maintenance:session-sweep", move || async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
+            loop {
+                ticker.tick().await;
+                match session_sweep.sweep_expired() {
+                    Ok(0) => {}
+                    Ok(swept) => tracing::info!(swept, "removed expired sessions"),
+                    Err(err) => tracing::warn!(error = %err, "the session sweep failed"),
+                }
+            }
+        });
+
     let update_slot = Arc::clone(&state.update_available);
     server
         .registry()

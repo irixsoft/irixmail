@@ -56,6 +56,9 @@ async fn dav_entry(State(state): State<AppState>, request: Request) -> Response 
     let Some(identity) = crate::auth_mw::authenticate_request(&state, &request).await else {
         return unauthorized();
     };
+    if !identity.may_use_mail() {
+        return unauthorized();
+    }
     let method = request.method().as_str().to_ascii_uppercase();
     let path = request.uri().path().to_string();
     let (parts, body) = request.into_parts();

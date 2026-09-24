@@ -24,7 +24,8 @@ mod tests {
     use axum::http::Request;
     use tower::ServiceExt;
 
-    use crate::app::{router, TokenInfo};
+    use crate::app::router;
+    use crate::sessions::{SessionKind, TokenInfo};
     use crate::tests_support::{state, TempDir};
 
     #[tokio::test]
@@ -35,7 +36,8 @@ mod tests {
             account_id: 1,
             username: "a@b.com".into(),
             is_admin: true,
-        });
+            kind: SessionKind::Admin,
+        }).unwrap();
         assert!(shared.tokens.validate(&token).is_some());
 
         let app = router(shared.clone());

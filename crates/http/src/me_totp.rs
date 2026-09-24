@@ -226,7 +226,8 @@ mod tests {
 
     use irixmail_directory::{totp as totp_service, Credential, Role, Totp};
 
-    use crate::app::{router, AppState, TokenInfo};
+    use crate::app::{router, AppState};
+    use crate::sessions::{SessionKind, TokenInfo};
     use crate::tests_support::{state, TempDir};
 
     fn account(shared: &AppState) -> u64 {
@@ -248,7 +249,8 @@ mod tests {
             account_id,
             username: "alice@example.com".into(),
             is_admin: false,
-        })
+            kind: SessionKind::Webmail,
+        }).unwrap()
     }
 
     async fn request(

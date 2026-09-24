@@ -418,7 +418,7 @@ mod tests {
     use irixmail_store::Collection;
 
     use crate::app::router;
-    use crate::tests_support::{admin_token, state, TempDir};
+    use crate::tests_support::{admin_mail_token as admin_token, state, TempDir};
 
     async fn json_body(response: Response) -> Value {
         let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();

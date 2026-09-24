@@ -122,7 +122,7 @@ function ThemedToaster() {
 export function App() {
   return (
     <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-      <AuthProvider baseUrl="" validate={validateSession}>
+      <AuthProvider kind="webmail" storageKey="irixmail.webmail" baseUrl="" validate={validateSession}>
         <JmapProvider>
           <MotionConfig reducedMotion="user">
             <LivePush />

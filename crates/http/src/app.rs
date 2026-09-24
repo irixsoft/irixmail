@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
-use rand::RngCore;
 use serde_json::json;
 
 use irixmail_core::LogBuffer;
@@ -18,69 +17,7 @@ use irixmail_tls::rustls::crypto::CryptoProvider;
 use irixmail_tls::{CertStore, Http01Challenges, SniResolver};
 use tokio::sync::mpsc;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TokenInfo {
-    pub account_id: u64,
-    pub username: String,
-    pub is_admin: bool,
-}
-
-const TOKEN_TTL: Duration = Duration::from_secs(24 * 60 * 60);
-
-struct StoredToken {
-    info: TokenInfo,
-    expires_at: Instant,
-}
-
-#[derive(Default)]
-pub struct SessionTokens {
-    inner: Mutex<HashMap<String, StoredToken>>,
-}
-
-impl SessionTokens {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn issue(&self, info: TokenInfo) -> String {
-        self.issue_with_ttl(info, TOKEN_TTL)
-    }
-
-    pub fn issue_with_ttl(&self, info: TokenInfo, ttl: Duration) -> String {
-        let token = random_token();
-        let stored = StoredToken {
-            info,
-            expires_at: Instant::now() + ttl,
-        };
-        self.inner.lock().unwrap().insert(token.clone(), stored);
-        token
-    }
-
-    pub fn validate(&self, token: &str) -> Option<TokenInfo> {
-        let mut inner = self.inner.lock().unwrap();
-        let snapshot = inner
-            .get(token)
-            .map(|stored| (stored.info.clone(), Instant::now() < stored.expires_at));
-        match snapshot {
-            Some((info, true)) => Some(info),
-            Some((_, false)) => {
-                inner.remove(token);
-                None
-            }
-            None => None,
-        }
-    }
-
-    pub fn revoke(&self, token: &str) -> bool {
-        self.inner.lock().unwrap().remove(token).is_some()
-    }
-}
-
-fn random_token() -> String {
-    let mut bytes = [0u8; 32];
-    rand::rng().fill_bytes(&mut bytes);
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
+use crate::sessions::{SessionKind, Sessions};
 
 const PENDING_TOTP_TTL: Duration = Duration::from_secs(5 * 60);
 
@@ -88,6 +25,7 @@ const PENDING_TOTP_ATTEMPTS: u8 = 5;
 
 struct PendingChallenge {
     account_id: u64,
+    kind: SessionKind,
     expires_at: Instant,
     attempts_left: u8,
 }
@@ -98,18 +36,19 @@ pub struct PendingChallenges {
 }
 
 impl PendingChallenges {
-    pub fn begin(&self, username: &str, account_id: u64) {
+    pub fn begin(&self, username: &str, account_id: u64, kind: SessionKind) {
         self.inner.lock().unwrap().insert(
             challenge_key(username),
             PendingChallenge {
                 account_id,
+                kind,
                 expires_at: Instant::now() + PENDING_TOTP_TTL,
                 attempts_left: PENDING_TOTP_ATTEMPTS,
             },
         );
     }
 
-    pub fn take_attempt(&self, username: &str) -> Option<u64> {
+    pub fn take_attempt(&self, username: &str) -> Option<(u64, SessionKind)> {
         let key = challenge_key(username);
         let mut inner = self.inner.lock().unwrap();
         let entry = inner.get_mut(&key)?;
@@ -118,7 +57,7 @@ impl PendingChallenges {
             return None;
         }
         entry.attempts_left -= 1;
-        Some(entry.account_id)
+        Some((entry.account_id, entry.kind))
     }
 
     pub fn complete(&self, username: &str) {
@@ -134,7 +73,7 @@ fn challenge_key(username: &str) -> String {
 pub struct AppState {
     pub directory: Directory,
     pub logs: LogBuffer,
-    pub tokens: Arc<SessionTokens>,
+    pub tokens: Arc<Sessions>,
     pub totp_pending: Arc<PendingChallenges>,
     pub store: Arc<dyn Store>,
     pub blobs: Arc<dyn BlobStore>,
@@ -177,7 +116,7 @@ impl AppState {
         Self {
             directory,
             logs,
-            tokens: Arc::new(SessionTokens::new()),
+            tokens: Arc::new(Sessions::new(Arc::clone(&store))),
             totp_pending: Arc::new(PendingChallenges::default()),
             store,
             blobs,
@@ -225,56 +164,15 @@ mod tests {
     use crate::tests_support::{state, TempDir};
 
     #[test]
-    fn tokens_round_trip_and_revoke() {
-        let tokens = SessionTokens::new();
-        let info = TokenInfo {
-            account_id: 7,
-            username: "alice@example.com".into(),
-            is_admin: true,
-        };
-        let token = tokens.issue(info.clone());
-        assert_eq!(token.len(), 64);
-        assert_eq!(tokens.validate(&token), Some(info));
-        assert!(tokens.revoke(&token));
-        assert_eq!(tokens.validate(&token), None);
-    }
-
-    #[test]
-    fn a_token_within_its_ttl_validates() {
-        let tokens = SessionTokens::new();
-        let info = TokenInfo {
-            account_id: 3,
-            username: "alice@example.com".into(),
-            is_admin: false,
-        };
-        let token = tokens.issue_with_ttl(info.clone(), Duration::from_secs(60));
-        assert_eq!(tokens.validate(&token), Some(info));
-    }
-
-    #[test]
-    fn an_expired_token_is_rejected_and_evicted() {
-        let tokens = SessionTokens::new();
-        let info = TokenInfo {
-            account_id: 3,
-            username: "alice@example.com".into(),
-            is_admin: false,
-        };
-        let token = tokens.issue_with_ttl(info, Duration::from_secs(0));
-        assert_eq!(tokens.validate(&token), None);
-        assert!(!tokens.revoke(&token));
-    }
-
-    #[test]
-    fn issued_tokens_are_distinct() {
-        let tokens = SessionTokens::new();
-        let info = TokenInfo {
-            account_id: 1,
-            username: "a".into(),
-            is_admin: false,
-        };
-        let first = tokens.issue(info.clone());
-        let second = tokens.issue(info);
-        assert_ne!(first, second);
+    fn a_pending_challenge_keeps_the_requested_session_kind() {
+        let pending = PendingChallenges::default();
+        pending.begin("Alice@Example.com", 7, SessionKind::Admin);
+        assert_eq!(
+            pending.take_attempt("alice@example.com"),
+            Some((7, SessionKind::Admin))
+        );
+        pending.complete("alice@example.com");
+        assert_eq!(pending.take_attempt("alice@example.com"), None);
     }
 
     #[tokio::test]

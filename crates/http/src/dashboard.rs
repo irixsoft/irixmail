@@ -106,7 +106,8 @@ mod tests {
     use axum::http::{header, Request, StatusCode};
     use tower::ServiceExt;
 
-    use crate::app::{router, TokenInfo};
+    use crate::app::router;
+    use crate::sessions::{SessionKind, TokenInfo};
     use crate::tests_support::{state, TempDir};
 
     #[tokio::test]
@@ -260,7 +261,8 @@ mod tests {
             account_id: 1,
             username: "admin@example.com".into(),
             is_admin: true,
-        });
+            kind: SessionKind::Admin,
+        }).unwrap();
         let app = router(shared);
         let response = app
             .oneshot(

@@ -12,6 +12,7 @@ import {
   ErrorState,
   Skeleton,
   cn,
+  useAuth,
 } from "@irixmail/shared";
 import {
   Archive,
@@ -275,14 +276,7 @@ export function ConversationView() {
   const { list: mailboxes, byRole } = useMailboxes();
   const tagDefinitions = React.useMemo(loadTagDefinitions, []);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
-  const token = React.useMemo(() => {
-    try {
-      const raw = localStorage.getItem("irixmail.auth");
-      return raw ? ((JSON.parse(raw) as { token?: string }).token ?? null) : null;
-    } catch {
-      return null;
-    }
-  }, []);
+  const { token } = useAuth();
 
   const anchorQuery = useQuery({
     queryKey: ["email", accountId, emailId],

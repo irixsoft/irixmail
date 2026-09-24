@@ -38,6 +38,9 @@ pub fn run(email: &str) -> Result<()> {
         .credentials()
         .set_primary_password(account.id, hash)
         .map_err(|error| anyhow!("{error}"))?;
+    irixmail_http::Sessions::new(Arc::clone(&store) as Arc<dyn Store>)
+        .revoke_account(account.id)
+        .map_err(|error| anyhow!("{error}"))?;
 
     println!("Password reset for {email}.");
     Ok(())

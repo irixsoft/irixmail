@@ -1,14 +1,15 @@
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::Json;
 use serde::Deserialize;
-use serde_json::json;
 
 use irixmail_directory::totp_flow::{self, ChallengeOutcome};
 use irixmail_directory::{Credential, Role};
 
-use crate::app::{error_response, AppState, TokenInfo};
+use crate::app::{error_response, AppState};
+use crate::auth_login::session_response;
+use crate::sessions::TokenInfo;
 
 #[derive(Deserialize)]
 pub struct TotpBody {
@@ -21,7 +22,7 @@ pub async fn totp(State(state): State<AppState>, Json(body): Json<TotpBody>) -> 
     if code.is_empty() || code.len() > 64 {
         return error_response(StatusCode::BAD_REQUEST, "a verification code is required");
     }
-    let Some(account_id) = state.totp_pending.take_attempt(&body.username) else {
+    let Some((account_id, kind)) = state.totp_pending.take_attempt(&body.username) else {
         return error_response(StatusCode::UNAUTHORIZED, "invalid or expired code");
     };
     let Ok(account) = state.directory.accounts().get(account_id) else {
@@ -55,17 +56,15 @@ pub async fn totp(State(state): State<AppState>, Json(body): Json<TotpBody>) -> 
                 }
             }
             state.totp_pending.complete(&body.username);
-            let is_admin = account.role == Role::Admin;
-            let token = state.tokens.issue(TokenInfo {
-                account_id: account.id,
-                username: body.username,
-                is_admin,
-            });
-            (
-                StatusCode::OK,
-                Json(json!({ "token": token, "isAdmin": is_admin })),
+            session_response(
+                &state,
+                TokenInfo {
+                    account_id: account.id,
+                    username: body.username,
+                    is_admin: account.role == Role::Admin,
+                    kind,
+                },
             )
-                .into_response()
         }
         Ok(ChallengeOutcome::Denied) => {
             error_response(StatusCode::UNAUTHORIZED, "invalid or expired code")
@@ -185,7 +184,7 @@ mod tests {
         let response = post_json(
             router(shared.clone()),
             "/api/auth/login",
-            r#"{"username":"alice@example.com","password":"correct horse"}"#.to_string(),
+            r#"{"kind":"webmail","username":"alice@example.com","password":"correct horse"}"#.to_string(),
         )
         .await;
         assert_eq!(response.status(), StatusCode::OK);
