@@ -1,38 +1,60 @@
-use std::fs;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use irixmail_core::BootstrapConfig;
+use irixmail_store::backup::{format_utc, read_manifest, unpack};
 
-use crate::cmd_backup::copy_dir;
+use crate::cmd_backup::backup_paths;
+use crate::setup_restore::adopt_config;
+use crate::systemd::{service_active, systemctl, RestartOnDrop};
 
-pub fn run(source: &Path) -> Result<()> {
+pub fn run(archive: &Path) -> Result<()> {
     let config_file = crate::cmd_run::config_path();
-    let backup_config = source.join("config.toml");
-    if !config_file.exists() && backup_config.exists() {
-        if let Some(parent) = config_file.parent() {
-            fs::create_dir_all(parent).ok();
+    let existing = match BootstrapConfig::load(&config_file) {
+        Ok(config) => Some(config),
+        Err(irixmail_core::Error::NotFound(_)) => None,
+        Err(error) => {
+            return Err(anyhow!("{error}"))
+                .with_context(|| format!("loading configuration from {}", config_file.display()))
         }
-        fs::copy(&backup_config, &config_file).context("restoring the configuration")?;
+    };
+    let config = existing.clone().unwrap_or_default();
+    let manifest = read_manifest(archive).map_err(|error| anyhow!("{error}"))?;
+    println!(
+        "Archive of {} made {} by irixmail {}",
+        manifest.hostname,
+        format_utc(manifest.created_at),
+        manifest.version
+    );
+
+    let _restart = if service_active() {
+        if !crate::ownership::running_as_root() {
+            anyhow::bail!(
+                "the irixmail service is running; re-run as root so it can be stopped: sudo irixmail restore {}",
+                archive.display()
+            );
+        }
+        println!("Stopping the irixmail service while the archive is restored.");
+        if !systemctl(&["stop", "irixmail"]) {
+            anyhow::bail!("could not stop the irixmail service");
+        }
+        Some(RestartOnDrop)
+    } else {
+        None
+    };
+
+    let paths = backup_paths(&config, &config_file);
+    let unpacked = unpack(archive, &paths).map_err(|error| anyhow!("{error}"))?;
+    if existing.is_none() {
+        if let Some(text) = unpacked.config_toml {
+            let restored = BootstrapConfig::parse(&text).map_err(|error| anyhow!("{error}"))?;
+            adopt_config(restored, &config.paths)
+                .save(&config_file)
+                .map_err(|error| anyhow!("{error}"))?;
+            println!("Configuration restored to {}", config_file.display());
+        }
     }
-
-    let config = BootstrapConfig::load(&config_file)
-        .with_context(|| format!("loading configuration from {}", config_file.display()))?;
-
-    restore_dir(&source.join("db"), &config.paths.db)?;
-    restore_dir(&source.join("blobs"), &config.paths.blobs)?;
-
-    println!("Restored from {}", source.display());
+    crate::ownership::ensure_service_ownership(&config, &config_file)?;
+    println!("Restored {} from {}", manifest.hostname, archive.display());
     Ok(())
-}
-
-fn restore_dir(source: &Path, destination: &Path) -> Result<()> {
-    if !source.exists() {
-        return Ok(());
-    }
-    if destination.exists() {
-        fs::remove_dir_all(destination)
-            .with_context(|| format!("clearing {}", destination.display()))?;
-    }
-    copy_dir(source, destination).map_err(|error| anyhow!("{error}"))
 }

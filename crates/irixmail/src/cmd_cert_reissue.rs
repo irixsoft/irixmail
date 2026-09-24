@@ -1,9 +1,8 @@
-use std::process::Command;
-
 use anyhow::{Context, Result};
 use irixmail_core::BootstrapConfig;
 
 use crate::setup::prompt;
+use crate::systemd::{service_active, systemctl, RestartOnDrop};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReissuePlan {
@@ -27,34 +26,6 @@ fn stop_confirmed(answer: &str) -> bool {
         answer.trim().to_ascii_lowercase().as_str(),
         "" | "y" | "yes"
     )
-}
-
-fn service_active() -> bool {
-    Command::new("systemctl")
-        .args(["is-active", "--quiet", "irixmail"])
-        .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
-}
-
-fn systemctl(args: &[&str]) -> bool {
-    Command::new("systemctl")
-        .args(args)
-        .status()
-        .map(|status| status.success())
-        .unwrap_or(false)
-}
-
-struct RestartOnDrop;
-
-impl Drop for RestartOnDrop {
-    fn drop(&mut self) {
-        if systemctl(&["start", "irixmail"]) {
-            println!("Service irixmail restarted.");
-        } else {
-            println!("Could not restart the service; run: sudo systemctl start irixmail");
-        }
-    }
 }
 
 fn issue(config: &BootstrapConfig) -> Result<()> {

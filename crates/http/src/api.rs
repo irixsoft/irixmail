@@ -40,6 +40,7 @@ pub(crate) fn public_routes() -> Router<AppState> {
         .route("/api/auth/totp", post(crate::auth_totp::totp))
         .route("/api/auth/logout", post(crate::auth_logout::logout))
         .route("/api/auth/session", get(crate::auth_session::session))
+        .route("/api/backup", get(crate::backup::download))
         .route("/healthz/live", get(crate::health_live::live))
         .route("/healthz/ready", get(crate::health_ready::ready))
         .route("/.well-known/jmap", get(crate::wk_jmap::well_known_jmap))
@@ -168,6 +169,7 @@ fn admin_routes(state: AppState) -> Router<AppState> {
             "/api/settings",
             get(crate::settings_get::get).put(crate::settings_put::put),
         )
+        .route("/api/backup/ticket", post(crate::backup::ticket))
         .route_layer(axum::middleware::from_fn_with_state(
             state,
             crate::auth_mw::require_admin,

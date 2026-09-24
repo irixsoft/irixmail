@@ -20,6 +20,7 @@ pub mod auth_session;
 pub mod auth_totp;
 pub mod autoconfig;
 pub mod autodiscover;
+pub mod backup;
 pub mod dashboard;
 pub mod dav_mount;
 pub mod dns_status;

@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod batch;
 pub mod changelog;
 pub mod checkpoint;
@@ -15,6 +16,7 @@ pub mod traits_blob;
 pub mod traits_store;
 pub mod ttl;
 
+pub use backup::{BackupPaths, Manifest, Unpacked};
 pub use batch::BatchBuilder;
 pub use changelog::{prune_change_logs, ChangeKind, ChangeLog, ChangeLogEntry, VanishedEntry};
 pub use expiring::ExpiringStore;

@@ -168,6 +168,10 @@ impl RocksdbStore {
 }
 
 impl Store for RocksdbStore {
+    fn checkpoint(&self, destination: &std::path::Path) -> irixmail_core::Result<()> {
+        RocksdbStore::checkpoint(self, destination)
+    }
+
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         RocksdbStore::get(self, key)
     }

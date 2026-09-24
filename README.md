@@ -159,8 +159,8 @@ account at a time. Multi Account support is planned for the next major release.
 | `irixmail setup` | First-run interactive setup. Resumable if interrupted. |
 | `irixmail admin reset-password <email>` | Recover admin access. |
 | `irixmail admin api-key create\|list\|revoke` | Manage admin API keys from the shell. |
-| `irixmail backup <dir>` | Write a consistent backup set. |
-| `irixmail restore <dir>` | Restore from a backup set. |
+| `irixmail backup <file.tar.gz>` | Write a backup archive while the service is stopped. The admin panel can download one while it runs. |
+| `irixmail restore <file.tar.gz>` | Restore an archive on the same host. On a new host, choose restore in `irixmail setup`. |
 | `irixmail cert status` | Show certificate state and expiry. |
 | `irixmail cert reissue` | Force a certificate reissue. |
 | `irixmail update` | Update to the latest release. Add `--check` to look without applying. |

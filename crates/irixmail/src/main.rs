@@ -16,8 +16,10 @@ mod setup_finish;
 mod setup_hostname;
 mod setup_ip;
 mod setup_relay;
+mod setup_restore;
 mod setup_service;
 mod setup_updates;
+mod systemd;
 
 fn main() {
     // feature unification compiles rustls with ring AND aws-lc-rs; unpinned, TLS clients panic

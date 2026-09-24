@@ -34,6 +34,12 @@ pub trait Store: Send + Sync {
         Ok(())
     }
 
+    fn checkpoint(&self, _destination: &std::path::Path) -> Result<()> {
+        Err(irixmail_core::Error::store(
+            "this store cannot write checkpoints",
+        ))
+    }
+
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
 
     fn exists(&self, key: &[u8]) -> Result<bool> {

@@ -12,7 +12,7 @@ use serde_json::json;
 use irixmail_core::LogBuffer;
 use irixmail_directory::{Directory, SecretCipher};
 use irixmail_dns::Resolver;
-use irixmail_store::{BlobStore, ChangeNotifier, Store};
+use irixmail_store::{BackupPaths, BlobStore, ChangeNotifier, Store, TtlStore};
 use irixmail_tls::rustls::crypto::CryptoProvider;
 use irixmail_tls::{CertStore, Http01Challenges, SniResolver};
 use tokio::sync::mpsc;
@@ -90,6 +90,9 @@ pub struct AppState {
     pub services: Arc<OnceLock<Vec<String>>>,
     pub ready: Arc<AtomicBool>,
     pub update_available: Arc<RwLock<Option<String>>>,
+    pub backup: Option<Arc<BackupPaths>>,
+    pub backup_tickets: Arc<TtlStore>,
+    pub backup_running: Arc<AtomicBool>,
 }
 
 #[derive(Clone, Default)]
@@ -133,6 +136,9 @@ impl AppState {
             services: Arc::new(OnceLock::new()),
             ready: Arc::new(AtomicBool::new(false)),
             update_available: Arc::new(RwLock::new(None)),
+            backup: None,
+            backup_tickets: Arc::new(TtlStore::new()),
+            backup_running: Arc::new(AtomicBool::new(false)),
         }
     }
 }

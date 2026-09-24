@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
+  ApiError,
   Badge,
   Button,
   Card,
@@ -312,6 +313,40 @@ function RateLimitsSection({ settings }: { settings: SettingsData }) {
   );
 }
 
+function BackupSection() {
+  const { client } = useAuth();
+  const download = useMutation({
+    mutationFn: () => client.post<{ ticket: string }>("/api/backup/ticket"),
+    onSuccess: (data) => {
+      window.location.assign(`/api/backup?ticket=${encodeURIComponent(data.ticket)}`);
+    },
+    onError: (error: unknown) =>
+      toast.error(
+        error instanceof ApiError && error.status === 409
+          ? "A backup is already running"
+          : "Could not start the backup",
+      ),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Backup</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Downloads a .tar.gz with every account and message, the server settings, DKIM keys,
+          the credential key and the TLS certificate. Restore it on a new server by choosing
+          restore during <span className="font-mono">irixmail setup</span>.
+        </p>
+        <Button onClick={() => download.mutate()} loading={download.isPending}>
+          Download backup
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { client } = useAuth();
   const query = useQuery({
@@ -331,6 +366,7 @@ export function SettingsPage() {
           <ServerSection settings={query.data} />
           <AntiSpamSection settings={query.data} />
           <RateLimitsSection settings={query.data} />
+          <BackupSection />
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-util = { version = "0.7", features = ["io"] }
 axum = { workspace = true }
 hyper = { workspace = true }
 tower = { workspace = true }

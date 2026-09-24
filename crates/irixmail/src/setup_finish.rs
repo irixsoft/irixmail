@@ -26,6 +26,6 @@ pub fn configure(config: &BootstrapConfig, cert_issued: bool) -> Result<()> {
 
     println!("\nSetup complete.");
     println!("Admin panel: {url}");
-    println!("Sign in with the admin account you just created.");
+    println!("Sign in with an administrator account.");
     Ok(())
 }
