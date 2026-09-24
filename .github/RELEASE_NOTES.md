@@ -1,28 +1,37 @@
-# v0.1.5
+# v0.1.6
 
 ## What's new
 
-**Filter rules are back — on our own Sieve engine**
-- IRIXMAIL now ships its own RFC 5228 Sieve compiler and interpreter, built from
-  scratch for delivery-time filtering: header, address, envelope, exists, and size
-  tests, allof/anyof/not, fileinto, redirect, discard, keep, stop, and IMAP flags
-- The Filters tab returns to webmail settings: sort incoming mail into folders,
-  forward it, mark it read, or discard it, matched on sender, recipient, or subject
-- Rules saved before the feature was removed keep working — nothing to migrate
-- A broken filter can never lose mail: if a script fails to compile, delivery falls
-  back to the inbox
+**Sign-ins that survive restarts**
+- Sessions are stored in the database, so the daily auto-update restart no longer
+  logs you out. The webmail stays signed in through 90 days of inactivity and renews
+  itself while you use it; the admin panel signs out after 12 idle hours
+- Changing or resetting a password signs that account out everywhere
 
-**ManageSieve server**
-- A ManageSieve (RFC 5804) server on port 4190 with STARTTLS, so Sieve scripts can
-  be managed from external editors and clients
-- Scripts edited outside the webmail keep running; the webmail shows them read-only
-  with the option to start over with rules
-- A `_sieve._tcp` SRV record is included in the generated DNS zone
+**Admin panel and webmail are separate**
+- Each has its own sign-in. Being signed in to the webmail no longer affects `/admin`,
+  and a non-admin account is refused at the admin login instead of landing on a
+  sign-out screen
+- Admin sessions cannot read mail and webmail sessions cannot reach admin routes,
+  even for administrator accounts
 
-**Other**
-- Filter delivery applies on both direct and relayed inbound mail, and filing into a
-  folder still raises a push notification unless the folder is Spam or Trash
+**Several accounts in the webmail**
+- Add more mailboxes from this server and switch between them from the avatar menu
+  or the new Accounts section in settings
+- Each account keeps its own offline cache and notification setting on the device
+- New-mail notifications name the account when more than one is signed in, and open
+  that account when tapped
+
+**Backup and restore**
+- Settings in the admin panel has a Download backup button that streams a `.tar.gz`
+  of the whole server while it runs: accounts, mail, settings, DKIM keys, the
+  credential key and the TLS certificate
+- `irixmail setup` opens with a fresh-or-restore choice. Point it at the archive on a
+  new host and the hostname, relay, accounts and certificate come back; admin
+  creation is skipped when the archive already has one
+- `irixmail backup <file.tar.gz>` and `irixmail restore <file.tar.gz>` write and read
+  the same archive from the shell
 
 ## Upgrading
 
-`sudo irixmail update` on an existing install, or download the binary for your platform below. Open port 4190 if you want to reach ManageSieve from outside.
+`sudo irixmail update` on an existing install, or download the binary for your platform below. Everyone is signed out once after this update, because sessions moved into the database. Backup directories written by earlier versions cannot be restored by this one; take a fresh archive after upgrading.
