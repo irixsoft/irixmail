@@ -47,9 +47,8 @@ export const LEGACY_STORAGE_KEY = "irixmail.auth";
 export function dropLegacySession(storage: Pick<Storage, "removeItem"> = localStorage): void {
   try {
     storage.removeItem(LEGACY_STORAGE_KEY);
-  } catch {
-    /* storage unavailable */
-  }
+  } catch {}
+  
 }
 
 function readState(storageKey: string): AuthState {
@@ -90,9 +89,8 @@ function AuthProvider({ children, kind, storageKey, baseUrl, validate, preferAcc
       try {
         if (next.sessions.length > 0) localStorage.setItem(storageKey, JSON.stringify(next));
         else localStorage.removeItem(storageKey);
-      } catch {
-        /* storage unavailable */
-      }
+      } catch {}
+      
     },
     [storageKey],
   );
