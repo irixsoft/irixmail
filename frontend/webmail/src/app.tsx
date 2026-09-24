@@ -8,6 +8,9 @@ import {
   AuthProvider,
   JmapClient,
   Toaster,
+  accountFromSearch,
+  sameUser,
+  stripAccountParam,
   useAuth,
   usePush,
   type AuthSession,
@@ -15,6 +18,7 @@ import {
 
 import { JmapProvider } from "@/lib/jmap";
 import { sessionStillValid } from "@/lib/session-validity";
+import { removeAccountLabel } from "@/pwa/pending-verifications";
 import {
   PERSIST_BUSTER,
   PERSIST_MAX_AGE,
@@ -22,23 +26,41 @@ import {
 } from "@/pwa/persisted-queries";
 import { createQueryStorage } from "@/pwa/query-storage";
 import { PwaBridge } from "@/pwa/pwa-bridge";
-import { teardownPush } from "@/pwa/web-push";
+import { forgetPush, teardownPush } from "@/pwa/web-push";
 import { router } from "@/router";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false, gcTime: PERSIST_MAX_AGE },
-  },
-});
 
 const queryStorage = createQueryStorage();
 
-const persistOptions = {
-  persister: createAsyncStoragePersister({ storage: queryStorage, key: "irixmail.query-cache" }),
-  maxAge: PERSIST_MAX_AGE,
-  buster: PERSIST_BUSTER,
-  dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
-};
+const clients = new Map<string, QueryClient>();
+
+function scopeOf(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+function cacheKey(scope: string): string {
+  return `irixmail.query-cache.${scope}`;
+}
+
+function clientFor(scope: string): QueryClient {
+  const existing = clients.get(scope);
+  if (existing) return existing;
+  const created = new QueryClient({
+    defaultOptions: {
+      queries: { retry: 1, refetchOnWindowFocus: false, gcTime: PERSIST_MAX_AGE },
+    },
+  });
+  clients.set(scope, created);
+  return created;
+}
+
+function persistOptionsFor(scope: string) {
+  return {
+    persister: createAsyncStoragePersister({ storage: queryStorage, key: cacheKey(scope) }),
+    maxAge: PERSIST_MAX_AGE,
+    buster: PERSIST_BUSTER,
+    dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+  };
+}
 
 const PUSH_INVALIDATIONS: Record<string, string[][]> = {
   Email: [["emails"], ["email"], ["search"], ["mailboxes"]],
@@ -80,19 +102,39 @@ function LivePush() {
   return null;
 }
 
-function CacheReset() {
-  const { token } = useAuth();
-  const client = useQueryClient();
-  const previous = React.useRef(token);
+function forgetSession(session: AuthSession) {
+  const scope = scopeOf(session.username);
+  clients.get(scope)?.clear();
+  clients.delete(scope);
+  void queryStorage.removeItem(cacheKey(scope));
+  if (session.accountId) {
+    forgetPush(session.accountId);
+    void removeAccountLabel(session.accountId).catch(() => undefined);
+  }
+}
+
+function SessionCleanup() {
+  const { sessions } = useAuth();
+  const previous = React.useRef(sessions);
   React.useEffect(() => {
-    if (previous.current && !token) {
-      client.clear();
-      void queryStorage.clear();
-      void teardownPush(null, null);
-    }
-    previous.current = token;
-  }, [token, client]);
+    const gone = previous.current.filter(
+      (old) => !sessions.some((current) => sameUser(current.username, old.username)),
+    );
+    for (const session of gone) forgetSession(session);
+    if (gone.length > 0 && sessions.length === 0) void teardownPush(null, null);
+    previous.current = sessions;
+  }, [sessions]);
   return null;
+}
+
+function AccountScope({ children }: { children: React.ReactNode }) {
+  const { status, username } = useAuth();
+  const scope = status === "authenticated" && username ? scopeOf(username) : "anonymous";
+  return (
+    <PersistQueryClientProvider key={scope} client={clientFor(scope)} persistOptions={persistOptionsFor(scope)}>
+      {children}
+    </PersistQueryClientProvider>
+  );
 }
 
 async function validateSession(session: AuthSession): Promise<boolean> {
@@ -119,20 +161,33 @@ function ThemedToaster() {
   return <Toaster position="top-right" theme={theme} richColors closeButton />;
 }
 
+function bootAccount(): string | null {
+  const wanted = accountFromSearch(window.location.search);
+  if (wanted) window.history.replaceState(null, "", stripAccountParam(window.location.href));
+  return wanted;
+}
+
 export function App() {
+  const [preferAccountId] = React.useState(bootAccount);
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-      <AuthProvider kind="webmail" storageKey="irixmail.webmail" baseUrl="" validate={validateSession}>
+    <AuthProvider
+      kind="webmail"
+      storageKey="irixmail.webmail"
+      baseUrl=""
+      validate={validateSession}
+      preferAccountId={preferAccountId}
+    >
+      <AccountScope>
         <JmapProvider>
           <MotionConfig reducedMotion="user">
             <LivePush />
-            <CacheReset />
+            <SessionCleanup />
             <PwaBridge />
             <RouterProvider router={router} />
             <ThemedToaster />
           </MotionConfig>
         </JmapProvider>
-      </AuthProvider>
-    </PersistQueryClientProvider>
+      </AccountScope>
+    </AuthProvider>
   );
 }

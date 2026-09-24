@@ -9,10 +9,12 @@ import {
   ShieldCheck,
   Tag,
   User,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
 import { AccountSection } from "./account-section";
+import { AccountsSection } from "./accounts-section";
 import { AppearanceSection } from "./appearance-section";
 import { AutoReplySection } from "./autoreply-section";
 import { FiltersSection } from "./filters-section";
@@ -31,6 +33,13 @@ interface Section {
 }
 
 const SECTIONS = [
+  {
+    id: "accounts",
+    label: "Accounts",
+    description: "Mailboxes signed in on this device.",
+    icon: Users,
+    component: AccountsSection,
+  },
   {
     id: "account",
     label: "Account",

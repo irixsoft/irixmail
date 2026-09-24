@@ -29,16 +29,21 @@ const totpSchema = z.object({
 });
 type TotpValues = z.infer<typeof totpSchema>;
 
+export function isAddingAccount(search: string): boolean {
+  return new URLSearchParams(search).get("add") === "1";
+}
+
 export function LoginPage() {
   const { login, verifyTotp, status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const adding = isAddingAccount(location.search);
   const from = (location.state as { from?: string } | null)?.from ?? "/";
   const [stage, setStage] = React.useState<"credentials" | "totp">("credentials");
 
   React.useEffect(() => {
-    if (status === "authenticated") navigate(from, { replace: true });
-  }, [status, from, navigate]);
+    if (status === "authenticated" && !adding) navigate(from, { replace: true });
+  }, [status, from, adding, navigate]);
 
   const credentialsForm = useForm<CredentialsValues>({
     resolver: zodResolver(credentialsSchema),
@@ -49,10 +54,15 @@ export function LoginPage() {
     defaultValues: { code: "" },
   });
 
+  const finish = () => {
+    if (adding) navigate("/", { replace: true });
+  };
+
   const onCredentials = credentialsForm.handleSubmit(async (values) => {
     try {
       const outcome = await login(values.username, values.password);
       if (outcome.status === "totp_required") setStage("totp");
+      else finish();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Could not sign in";
       credentialsForm.setError("password", { message });
@@ -62,6 +72,7 @@ export function LoginPage() {
   const onTotp = totpForm.handleSubmit(async (values) => {
     try {
       await verifyTotp(values.code);
+      finish();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Invalid or expired code";
       totpForm.setError("code", { message });
@@ -75,8 +86,10 @@ export function LoginPage() {
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <Brand className="h-8" />
           <div>
-            <h1 className="text-lg font-semibold">Webmail</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your mailbox</p>
+            <h1 className="text-lg font-semibold">{adding ? "Add account" : "Webmail"}</h1>
+            <p className="text-sm text-muted-foreground">
+              {adding ? "Sign in to another mailbox on this server" : "Sign in to your mailbox"}
+            </p>
           </div>
         </div>
 
@@ -116,7 +129,7 @@ export function LoginPage() {
                   )}
                 />
                 <Button type="submit" loading={credentialsForm.formState.isSubmitting}>
-                  Sign in
+                  {adding ? "Add account" : "Sign in"}
                 </Button>
               </form>
             </Form>
@@ -153,6 +166,14 @@ export function LoginPage() {
             </Form>
           )}
         </div>
+
+        {adding ? (
+          <div className="mt-4 text-center">
+            <Button type="button" variant="ghost" size="sm" onClick={() => navigate("/")}>
+              Back to mail
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

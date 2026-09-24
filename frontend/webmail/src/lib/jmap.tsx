@@ -2,6 +2,8 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { JmapClient, useAuth, type JmapSession } from "@irixmail/shared";
 
+import { putAccountLabel } from "@/pwa/pending-verifications";
+
 const JmapContext = React.createContext<JmapClient | null>(null);
 
 const MAIL = "urn:ietf:params:jmap:mail";
@@ -30,6 +32,7 @@ export function useJmap(): JmapClient {
 
 export function useJmapSession() {
   const client = useJmap();
+  const { username, setAccountId } = useAuth();
   const query = useQuery({
     queryKey: ["jmap-session"],
     queryFn: () => client.session(),
@@ -39,5 +42,12 @@ export function useJmapSession() {
   const accountId =
     session?.primaryAccounts?.[MAIL] ??
     (session ? Object.keys(session.accounts)[0] : undefined);
+
+  React.useEffect(() => {
+    if (!accountId || !username) return;
+    setAccountId(username, accountId);
+    void putAccountLabel({ accountId, label: username }).catch(() => undefined);
+  }, [accountId, username, setAccountId]);
+
   return { session, accountId, query };
 }

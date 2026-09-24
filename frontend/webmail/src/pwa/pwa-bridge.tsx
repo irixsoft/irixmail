@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { toast } from "@irixmail/shared";
+import { sessionForAccount, toast, useAuth } from "@irixmail/shared";
 
 import { useJmap } from "@/lib/jmap";
 import { router } from "@/router";
@@ -22,6 +22,12 @@ function routerPath(url: string): string | null {
 export function PwaBridge() {
   const jmap = useJmap();
   const queryClient = useQueryClient();
+  const { sessions, accountId, switchTo } = useAuth();
+  const authRef = React.useRef({ sessions, accountId, switchTo });
+
+  React.useEffect(() => {
+    authRef.current = { sessions, accountId, switchTo };
+  }, [sessions, accountId, switchTo]);
 
   React.useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -121,7 +127,11 @@ export function PwaBridge() {
         }
       }
       if (data.kind === "open-url") {
-        const path = routerPath((data as { url?: string }).url ?? "");
+        const { url, accountId: target } = data as { url?: string; accountId?: string };
+        const path = routerPath(url ?? "");
+        const current = authRef.current;
+        const session = target ? sessionForAccount(current.sessions, target) : null;
+        if (session && target !== current.accountId) current.switchTo(session.username);
         if (path) void router.navigate(path);
       }
     };

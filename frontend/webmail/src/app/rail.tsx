@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Avatar,
   AvatarFallback,
@@ -14,9 +14,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
   cn,
+  sameUser,
   useAuth,
 } from "@irixmail/shared";
-import { BookUser, Calendar, LogOut, Mail, Moon, Search, Settings, Sun, type LucideIcon } from "lucide-react";
+import {
+  BookUser,
+  Calendar,
+  Check,
+  LogOut,
+  Mail,
+  Moon,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 
 import brandIcon from "@/assets/icon.svg";
 
@@ -62,9 +75,16 @@ function RailLink({
 }
 
 export function Rail() {
-  const { username } = useAuth();
+  const { username, sessions, switchTo } = useAuth();
   const signOut = useLogout();
+  const navigate = useNavigate();
   const section = useLocation().pathname.split("/")[1] ?? "";
+
+  const activate = (target: string) => {
+    if (username && sameUser(target, username)) return;
+    switchTo(target);
+    void navigate("/");
+  };
   const [dark, setDark] = React.useState(() => document.documentElement.classList.contains("dark"));
 
   const toggleTheme = () => {
@@ -105,17 +125,27 @@ export function Rail() {
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="end" className="min-w-52">
-              <DropdownMenuLabel className="font-mono text-xs font-normal text-muted-foreground">
-                {username}
-              </DropdownMenuLabel>
+            <DropdownMenuContent side="right" align="end" className="min-w-56">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Accounts</DropdownMenuLabel>
+              {sessions.map((session) => {
+                const active = Boolean(username && sameUser(session.username, username));
+                return (
+                  <DropdownMenuItem key={session.username} onClick={() => activate(session.username)}>
+                    <Check className={cn("size-4", active ? "opacity-100" : "opacity-0")} />
+                    <span className="font-mono text-xs">{session.username}</span>
+                  </DropdownMenuItem>
+                );
+              })}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void navigate("/login?add=1")}>
+                <Plus className="size-4" /> Add account
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
                   void signOut();
                 }}
               >
-                <LogOut className="size-4" /> Sign out
+                <LogOut className="size-4" /> {sessions.length > 1 ? `Sign out of ${username}` : "Sign out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

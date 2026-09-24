@@ -10,6 +10,8 @@ import { clearPending, listPending, removePending } from "./pending-verification
 
 const SUB_PREFIX = "irixmail.webmail.push.sub.";
 const SUB_KEY = (accountId: string) => `${SUB_PREFIX}${accountId}`;
+const DEVICE_PREFIX = "irixmail.webmail.push.device.";
+const DEVICE_KEY = (accountId: string) => `${DEVICE_PREFIX}${accountId}`;
 
 export class PushVerifyRejected extends Error {}
 
@@ -97,21 +99,34 @@ export async function disableWebPush(jmap: JmapClient, accountId: string): Promi
   return teardownPush(jmap, accountId);
 }
 
+export function forgetPush(accountId: string): void {
+  localStorage.removeItem(SUB_KEY(accountId));
+  localStorage.removeItem(DEVICE_KEY(accountId));
+}
+
+export function pushAccountsRemaining(): number {
+  return Object.keys(localStorage).filter((key) => key.startsWith(SUB_PREFIX)).length;
+}
+
 export async function teardownPush(
   jmap: JmapClient | null,
   accountId: string | null,
   factory: IDBFactory = indexedDB,
 ): Promise<void> {
-  if (jmap && accountId) {
+  if (accountId) {
     const storedId = localStorage.getItem(SUB_KEY(accountId));
-    if (storedId) {
+    if (jmap && storedId) {
       await jmap.call("PushSubscription/set", { destroy: [storedId] }).catch(() => undefined);
     }
+    if (storedId) await removePending(storedId, factory).catch(() => undefined);
+    forgetPush(accountId);
+  } else {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(SUB_PREFIX) || key.startsWith(DEVICE_PREFIX)) localStorage.removeItem(key);
+    }
+    await clearPending(factory).catch(() => undefined);
   }
-  for (const key of Object.keys(localStorage)) {
-    if (key.startsWith(SUB_PREFIX)) localStorage.removeItem(key);
-  }
-  await clearPending(factory).catch(() => undefined);
+  if (pushAccountsRemaining() > 0) return;
   try {
     if ("serviceWorker" in navigator) {
       const registration = await navigator.serviceWorker.getRegistration();

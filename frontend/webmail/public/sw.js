@@ -5,7 +5,10 @@ const BASE = new URL("./", self.location).pathname;
 
 // Mirrors src/pwa/pending-verifications.ts and src/pwa/push.ts — keep in sync.
 const DB_NAME = "irixmail-push";
+const DB_VERSION = 2;
 const STORE = "pending";
+const ACCOUNTS = "accounts";
+const ACCOUNT_PARAM = "account";
 
 const SHELL_PREFIX = "irixmail-shell-";
 const SHELL_CACHE = self.__SHELL_CACHE || `${SHELL_PREFIX}dev`;
@@ -116,13 +119,43 @@ self.addEventListener("fetch", (event) => {
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE, { keyPath: "subscriptionId" });
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "subscriptionId" });
+      if (!db.objectStoreNames.contains(ACCOUNTS)) db.createObjectStore(ACCOUNTS, { keyPath: "accountId" });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+async function accountLabels() {
+  try {
+    const db = await openDb();
+    const rows = await new Promise((resolve, reject) => {
+      const request = db.transaction(ACCOUNTS, "readonly").objectStore(ACCOUNTS).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+function withAccountLabel(notice, label, labelCount, accountId) {
+  const body = label && labelCount > 1 ? `${label} · ${notice.body}` : notice.body;
+  const tag = accountId ? `${notice.tag || "irixmail-new-mail"}-${accountId}` : notice.tag;
+  return { ...notice, body, tag, accountId };
+}
+
+function withAccountParam(url, accountId) {
+  if (!accountId) return url;
+  const target = new URL(url, self.location.origin);
+  target.searchParams.set(ACCOUNT_PARAM, accountId);
+  return target.toString();
 }
 
 async function persistPending(entry) {
@@ -168,7 +201,7 @@ function showNotice(notice) {
     tag: notice.tag || "irixmail-new-mail",
     icon: `${BASE}icons/icon-192.png`,
     badge: `${BASE}icons/maskable-192.png`,
-    data: { url: notice.url || BASE },
+    data: { url: notice.url || BASE, accountId: notice.accountId || null },
   });
 }
 
@@ -203,10 +236,15 @@ self.addEventListener("push", (event) => {
   if (payload["@type"] === "StateChange") {
     event.waitUntil(
       (async () => {
-        const clients = await broadcast({ kind: "state-change", changed: payload.changed ?? {} });
+        const changed = payload.changed ?? {};
+        const clients = await broadcast({ kind: "state-change", changed });
         const visible = clients.some((client) => client.visibilityState === "visible");
         const notice = stateChangeNotice(payload, visible, navigator.userAgent);
-        if (notice) await showNotice(notice);
+        if (!notice) return;
+        const accountId = Object.keys(changed)[0] || null;
+        const labels = await accountLabels();
+        const match = labels.find((row) => row.accountId === accountId);
+        await showNotice(withAccountLabel(notice, match ? match.label : null, labels.length, accountId));
       })(),
     );
   }
@@ -214,18 +252,20 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || BASE;
+  const data = event.notification.data || {};
+  const url = data.url || BASE;
+  const accountId = data.accountId || null;
   event.waitUntil(
     (async () => {
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of clients) {
         if ("focus" in client) {
           await client.focus();
-          client.postMessage({ kind: "open-url", url });
+          client.postMessage({ kind: "open-url", url, accountId });
           return;
         }
       }
-      await self.clients.openWindow(url);
+      await self.clients.openWindow(withAccountParam(url, accountId));
     })(),
   );
 });

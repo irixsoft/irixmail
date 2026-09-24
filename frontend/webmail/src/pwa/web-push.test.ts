@@ -3,7 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 
 import type { JmapClient } from "@irixmail/shared";
 import { listPending, putPending } from "./pending-verifications";
-import { drainPendingVerifications, teardownPush } from "./web-push";
+import { drainPendingVerifications, forgetPush, pushAccountsRemaining, teardownPush } from "./web-push";
 
 function fakeJmap(call = vi.fn().mockResolvedValue({})) {
   return { client: { call } as unknown as JmapClient, call };
@@ -66,7 +66,7 @@ describe("teardownPush", () => {
 
   it("destroys the server subscription and clears local push state", async () => {
     const factory = new IDBFactory();
-    await putPending({ subscriptionId: "5", code: "abc" }, factory);
+    await putPending({ subscriptionId: "9001", code: "abc" }, factory);
     localStorage.setItem(SUB_KEY, "9001");
     const { client, call } = fakeJmap();
 
@@ -77,14 +77,41 @@ describe("teardownPush", () => {
     expect(await listPending(factory)).toEqual([]);
   });
 
-  it("clears stale keys from other accounts too", async () => {
+  it("leaves other accounts' subscriptions alone", async () => {
     localStorage.setItem(SUB_KEY, "9001");
+    localStorage.setItem("irixmail.webmail.push.device.acct", "dev-a");
     localStorage.setItem("irixmail.webmail.push.sub.other", "1");
-    const { client } = fakeJmap();
+    localStorage.setItem("irixmail.webmail.push.device.other", "dev-b");
+    const { client, call } = fakeJmap();
 
     await teardownPush(client, "acct", new IDBFactory());
 
-    expect(localStorage.getItem("irixmail.webmail.push.sub.other")).toBeNull();
+    expect(call).toHaveBeenCalledWith("PushSubscription/set", { destroy: ["9001"] });
+    expect(localStorage.getItem(SUB_KEY)).toBeNull();
+    expect(localStorage.getItem("irixmail.webmail.push.device.acct")).toBeNull();
+    expect(localStorage.getItem("irixmail.webmail.push.sub.other")).toBe("1");
+    expect(localStorage.getItem("irixmail.webmail.push.device.other")).toBe("dev-b");
+    expect(pushAccountsRemaining()).toBe(1);
+  });
+
+  it("only drops the pending verification of the account being torn down", async () => {
+    const factory = new IDBFactory();
+    await putPending({ subscriptionId: "9001", code: "abc" }, factory);
+    await putPending({ subscriptionId: "9002", code: "def" }, factory);
+    localStorage.setItem(SUB_KEY, "9001");
+    const { client } = fakeJmap();
+
+    await teardownPush(client, "acct", factory);
+
+    expect(await listPending(factory)).toEqual([{ subscriptionId: "9002", code: "def" }]);
+  });
+
+  it("forgets an account's local push keys without touching the server", () => {
+    localStorage.setItem(SUB_KEY, "9001");
+    localStorage.setItem("irixmail.webmail.push.device.acct", "dev-a");
+    forgetPush("acct");
+    expect(localStorage.getItem(SUB_KEY)).toBeNull();
+    expect(localStorage.getItem("irixmail.webmail.push.device.acct")).toBeNull();
   });
 
   it("cleans local state without a client and never throws", async () => {

@@ -49,6 +49,19 @@ export function requiresVisibleNotification(userAgent: string): boolean {
 export interface PushNotice {
   title: string;
   body: string;
+  tag?: string;
+  accountId?: string | null;
+}
+
+export function withAccountLabel(
+  notice: PushNotice,
+  label: string | null,
+  labelCount: number,
+  accountId: string | null,
+): PushNotice {
+  const body = label && labelCount > 1 ? `${label} · ${notice.body}` : notice.body;
+  const tag = accountId ? `${notice.tag ?? "irixmail-new-mail"}-${accountId}` : notice.tag;
+  return { ...notice, body, tag, accountId };
 }
 
 export function stateChangeNotice(

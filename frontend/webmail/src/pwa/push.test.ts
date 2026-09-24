@@ -7,6 +7,7 @@ import {
   stateChangeNotice,
   subscriptionCreateArgs,
   urlBase64ToUint8Array,
+  withAccountLabel,
 } from "./push";
 
 beforeEach(() => localStorage.clear());
@@ -137,5 +138,19 @@ describe("classifyPushPayload", () => {
   it("rejects junk", () => {
     expect(classifyPushPayload({ hello: 1 })).toBeNull();
     expect(classifyPushPayload(null)).toBeNull();
+  });
+});
+
+describe("withAccountLabel", () => {
+  it("prefixes the body only when more than one account is signed in", () => {
+    const notice = { title: "Alice", body: "Lunch?", tag: "irixmail-new-mail" };
+    expect(withAccountLabel(notice, "me@example.com", 2, "1")).toEqual({
+      title: "Alice",
+      body: "me@example.com · Lunch?",
+      tag: "irixmail-new-mail-1",
+      accountId: "1",
+    });
+    expect(withAccountLabel(notice, "me@example.com", 1, "1").body).toBe("Lunch?");
+    expect(withAccountLabel(notice, null, 2, null)).toEqual({ ...notice, accountId: null });
   });
 });
